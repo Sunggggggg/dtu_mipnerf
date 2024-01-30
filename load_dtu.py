@@ -106,7 +106,7 @@ def load_dtu_data(data_dir="data/Rectified/images",
         image = np.array(Image.open(fname), dtype=np.float32) / 255.
 
         # Load projection matrix from file.
-        fname = os.path.join(data_dir, f'Calibration/cal18/pos_{i:03d}.txt')
+        fname = os.path.join(data_dir, f'../../Calibration/cal18/pos_{i:03d}.txt')
         projection = np.loadtxt(fname, dtype=np.float32)
         camera_mat, rot_mat, t = cv2.decomposeProjectionMatrix(projection)[:3]
         camera_mat = camera_mat / camera_mat[2, 2]
