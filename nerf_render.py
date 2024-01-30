@@ -70,7 +70,7 @@ def render_path(render_poses, H, W, p2c, chunk, mipnerf,
     rgbs = []
     if progress_bar :
         for i, c2w in enumerate(tqdm(render_poses)):
-            rgb, _, _= render_mipnerf(H, W, p2c, chunk=chunk, mipnerf=mipnerf, c2w=c2w[:3,:4],
+            rgb, _, _= render_mipnerf(H, W, p2c[i], chunk=chunk, mipnerf=mipnerf, c2w=c2w[:3,:4],
                                     near=near, far=far, use_viewdirs=use_viewdirs)
             rgb = torch.reshape(rgb, [2, H, W, 3])
 
@@ -82,7 +82,7 @@ def render_path(render_poses, H, W, p2c, chunk, mipnerf,
             rgbs.append(rgb.cpu().numpy())
     else : 
         for i, c2w in enumerate(render_poses):
-            rgb, _, _= render_mipnerf(H, W, p2c, chunk=chunk, mipnerf=mipnerf, c2w=c2w[:3,:4],
+            rgb, _, _= render_mipnerf(H, W, p2c[i], chunk=chunk, mipnerf=mipnerf, c2w=c2w[:3,:4],
                                     near=near, far=far, use_viewdirs=use_viewdirs)
             rgb = torch.reshape(rgb, [2, H, W, 3])
 

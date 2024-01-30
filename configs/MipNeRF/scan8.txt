@@ -23,3 +23,7 @@ min_deg = 0
 max_deg = 16
 viewdirs_min_deg = 0
 viewdirs_max_deg = 4
+
+i_print = 10
+i_weights = 10000
+i_testset = 10000
