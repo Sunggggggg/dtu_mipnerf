@@ -139,7 +139,7 @@ def load_dtu_data(data_dir="data/Rectified/images",
         i_all = np.arange(images.shape[0])
         i_train = i_all[i_all % dtuhold != 0]
         i_test = i_all[i_all % dtuhold == 0]
-    
+    print("Train", i_train, "Test", i_test)
     # Make Novel view
     render_poses = generate_spiral_path_dtu(c2w, 40)        # [N, 3, 4]
 
