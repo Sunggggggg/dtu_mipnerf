@@ -114,9 +114,9 @@ def train(rank, world_size, args):
         
         # 2. Generate rays
         rays_o, rays_d = get_rays_dtu(H, W, K, pose)
-        radii = get_radii(rays_d)
+        radii = get_radii(rays_d)   # [H, W, 1]
         rays_o = shift_origins(rays_o, rays_d, 0.0)
-        print(radii.shape, rays_o.shape)
+
         # 3. Random select rays
         if i < args.precrop_iters:
             dH = int(H//2 * args.precrop_frac)
@@ -131,6 +131,7 @@ def train(rank, world_size, args):
         else:
             coords = torch.stack(torch.meshgrid(torch.linspace(0, H-1, H), torch.linspace(0, W-1, W)), -1)  # (H, W, 2)
 
+        print(coords.shape)
         coords = torch.reshape(coords, [-1,2])  # (H * W, 2)
         select_inds = np.random.choice(coords.shape[0], size=[N_rand], replace=False)  # (N_rand,)
         select_coords = coords[select_inds].long()        # (N_rand, 2)
