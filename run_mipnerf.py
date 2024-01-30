@@ -15,7 +15,8 @@ from scheduler import MipLRDecay
 from loss import MipNeRFLoss
 from model import MipNeRF
 #
-from load_dtu import load_dtu_data, get_rays_dtu, get_radii, shift_origins, dtu_sampling_pose_interp
+from load_dtu import load_dtu_data, dtu_sampling_pose_interp
+from nerf_render import *
 from nerf_render import *
 
 
