@@ -67,7 +67,6 @@ def train(rank, world_size, args):
     scheduler = MipLRDecay(optimizer, lr_init=args.lr_init, lr_final=args.lr_final, 
                            max_steps=args.max_iters, lr_delay_steps=args.lr_delay_steps, 
                            lr_delay_mult=args.lr_delay_mult)
-    # optimizer = optim.Adam(model.parameters(), lr=5e-4, betas=(0.9, 0.999))
     
     # Training hyperparams
     N_rand = args.N_rand
