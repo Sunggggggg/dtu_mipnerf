@@ -26,7 +26,7 @@ def get_rays_dtu(H, W, p2c, c2w):
     p2c : [3, 3]
     c2w : [3, 4]
     """
-    x, y = torch.meshgrid(torch.arange(W) + 0.5, torch.arange(H) + 0.5, indexing='xy')
+    x, y = torch.meshgrid(torch.arange(H) + 0.5, torch.arange(W) + 0.5, indexing='xy')
     x = x.t()
     y = y.t()
 
