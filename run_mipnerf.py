@@ -105,13 +105,14 @@ def train(rank, world_size, args):
         # 1. Random select image
         img_i = np.random.choice(i_train)
         pose = c2w[img_i, :3,:4]
-        K = p2c[img_i]
+        # K = p2c[img_i]
         target = images[img_i]
 
         target = torch.Tensor(target).to(rank)
         pose = torch.Tensor(pose).to(rank)          # [3, 4]
+        print(pose.shape)
         # 2. Generate rays
-        rays_o, rays_d = get_rays_dtu(H, W, K, pose)
+        rays_o, rays_d = get_rays_dtu(H, W, p2c, pose)
         radii = get_radii(rays_d)
         rays_o = shift_origins(rays_o, rays_d, 0.0)
     
@@ -140,7 +141,7 @@ def train(rank, world_size, args):
         target = target[select_coords[:, 0], select_coords[:, 1]]     # (N_rand, 3)
         
         # 4. Rendering 
-        comp_rgbs, _, _ = render_mipnerf(H, W, K, chunk=args.chunk, mipnerf=model, 
+        comp_rgbs, _, _ = render_mipnerf(H, W, p2c, chunk=args.chunk, mipnerf=model, 
                                          rays=batch_rays, radii=radii, near=near, far=far, use_viewdirs=args.use_viewdirs)
         
         # 5. loss and update
