@@ -1,6 +1,12 @@
 import torch
 import numpy as np
 
+def shift_origins(origins, directions, near=0.0):
+    """Shift ray origins to near plane, such that oz = near."""
+    t = (near - origins[..., 2]) / directions[..., 2]
+    origins = origins + t[..., None] * directions
+    return origins
+
 def get_radii(rays_d):
     """
     args
@@ -14,48 +20,21 @@ def get_radii(rays_d):
     radii = dx[..., None] * 2 / 12**0.5
 
     return radii
-# Ray helpers
-def get_rays(H, W, K, c2w):
-    """ All rays from origin, rays_o, rays_d is dir vectors
+
+def get_rays_dtu(H, W, p2c, c2w):
     """
-    device = c2w.device
-
-    i, j = torch.meshgrid(torch.linspace(0, W-1, W), torch.linspace(0, H-1, H))
-    i = i.t()
-    j = j.t()
-    dirs = torch.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -torch.ones_like(i)], -1).to(device)
-    rays_d = torch.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
-    rays_o = c2w[:3,-1].expand(rays_d.shape)
-    return rays_o, rays_d
-
-def get_rays_np(H, W, K, c2w):
-    """ All rays from origin, rays_o, rays_d is dir
+    p2c : [3, 3]
+    c2w : [3, 4]
     """
-    i, j = np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32), indexing='xy')
-    dirs = np.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -np.ones_like(i)], -1)
-    # Rotate ray directions from camera frame to the world frame
-    rays_d = np.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
-    # Translate camera frame's origin to the world frame. It is the origin of all rays.
-    rays_o = np.broadcast_to(c2w[:3,-1], np.shape(rays_d))
-    return rays_o, rays_d
+    x, y = torch.meshgrid(torch.arange(W) + 0.5, torch.arange(H) + 0.5, indexing='xy')
+    x = x.t()
+    y = y.t()
 
-def ndc_rays(H, W, focal, near, rays_o, rays_d):
-    # Shift ray origins to near plane
-    t = -(near + rays_o[...,2]) / rays_d[...,2]
-    rays_o = rays_o + t[...,None] * rays_d
-    
-    # Projection
-    o0 = -1./(W/(2.*focal)) * rays_o[...,0] / rays_o[...,2]
-    o1 = -1./(H/(2.*focal)) * rays_o[...,1] / rays_o[...,2]
-    o2 = 1. + 2. * near / rays_o[...,2]
+    ray_dirs = torch.stack([x, y, torch.ones_like(x)], -1)
+    cam_dirs = torch.stack([ray_dirs @ c.T for c in p2c])
+    rays_d = torch.stack([v @ c[:3, :3].T for (v, c) in zip(cam_dirs, c2w)])    # [N, H, W, 3]
+    rays_o = c2w[:, None, None, :3, -1].expand(rays_d.shape)                    # [N, H, W, 3]
 
-    d0 = -1./(W/(2.*focal)) * (rays_d[...,0]/rays_d[...,2] - rays_o[...,0]/rays_o[...,2])
-    d1 = -1./(H/(2.*focal)) * (rays_d[...,1]/rays_d[...,2] - rays_o[...,1]/rays_o[...,2])
-    d2 = -2. * near / rays_o[...,2]
-    
-    rays_o = torch.stack([o0,o1,o2], -1)
-    rays_d = torch.stack([d0,d1,d2], -1)
-    
     return rays_o, rays_d
 
 def lift_gaussian(d, t_mean, t_var, r_var, diag):

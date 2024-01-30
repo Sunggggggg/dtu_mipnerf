@@ -87,17 +87,11 @@ def generate_spiral_path_dtu(poses, n_frames=120, n_rots=2, zrate=.5, perc=60):
     return render_poses
 
 def load_dtu_data(data_dir="data/Rectified/images", 
-                        dtu_mask_path="data/Rectified/mask", 
-                        dataset_type="dtu",
-                        dtu_scan="scan8", 
-                        white_background=False, 
-                        near=0.5, 
-                        far=3.5, 
-                        factor=4,
-                        dtu_splite_type='pixelnerf',
-                        dtuhold=8,
-                        nerf_input=6
-                        ):
+                    dtu_mask_path="data/Rectified/mask", 
+                    dtu_scan="scan8", 
+                    factor=4,
+                    dtu_splite_type='pixelnerf',
+                    dtuhold=8):
     """
     data_dir : Data load path
 
@@ -171,41 +165,39 @@ def load_dtu_data(data_dir="data/Rectified/images",
 
     return images, c2w, p2c
 
-def shift_origins(origins, directions, near=0.0):
-    """Shift ray origins to near plane, such that oz = near."""
-    t = (near - origins[..., 2]) / directions[..., 2]
-    origins = origins + t[..., None] * directions
-    return origins
+def load_nerf_dtu_data(basedir, near, far, num_inputs=16, factor=4, dtu_hold=8):
+    nerf_dtu_dir = os.path.join(basedir, 'Rectified')
+    scan_list = os.listdir(nerf_dtu_dir)
+    scan_list = [obj for obj in scan_list if os.path.isdir(os.path.join(scan_list, obj))]
+    
+    # Same input image size
+    train_imgs, train_poses = [], []
+    for scan in scan_list :
+        scandir = os.path.join(nerf_dtu_dir, scan)
+        images, c2w, p2c, render_poses, i_train, i_test = load_dtu_data(data_dir=scandir, factor=factor)
 
-def get_radii(rays_d):
-    """
-    args
-        rays_d :    [H, W, 3]
+        print(scan, 'Loaded dtu', images.shape, render_poses.shape)
+        if not isinstance(i_test, list):
+            i_test = [i_test]
 
-    return
-        radii  :    [H, W, 1]
-    """
-    dx = torch.sqrt(torch.sum((rays_d[:-1, :, :] - rays_d[1:, :, :]) ** 2, -1))
-    dx = torch.cat([dx, dx[-2:-1, :]], 0)
-    radii = dx[..., None] * 2 / 12**0.5
+        if dtu_hold > 0:
+            i_test = np.arange(images.shape[0])[::dtu_hold][1:] # pop 0
 
-    return radii
+        i_val = i_test
+        i_train = np.array([i for i in np.arange(int(images.shape[0])) if
+                        (i not in i_test and i not in i_val)])
+        # Few-shot
+        i_train = i_train[-num_inputs:]             # 
+        print(i_train, i_test)
+        
+        # train
+        train_imgs.append(images[i_train])        # [N, H, W, 3]
+        train_poses.append(poses[i_train])      # [N, 4, 4]
 
-def get_rays_dtu(H, W, p2c, c2w):
-    """
-    p2c : [3, 3]
-    c2w : [3, 4]
-    """
-    x, y = torch.meshgrid(torch.arange(W) + 0.5, torch.arange(H) + 0.5, indexing='xy')
-    x = x.t()
-    y = y.t()
+    train_imgs = np.stack(train_imgs, 0)      # [O, N, H, W, 3]    
+    train_poses = np.stack(train_poses, 0)    # [O, N, 4, 4]
 
-    ray_dirs = torch.stack([x, y, torch.ones_like(x)], -1)
-    cam_dirs = torch.stack([ray_dirs @ c.T for c in p2c])
-    rays_d = torch.stack([v @ c[:3, :3].T for (v, c) in zip(cam_dirs, c2w)])    # [N, H, W, 3]
-    rays_o = c2w[:, None, None, :3, -1].expand(rays_d.shape)                    # [N, H, W, 3]
-
-    return rays_o, rays_d
+    return train_imgs, train_poses, hwf, object_list
 
 ###################################################################################################
 # Sampling Diet NeRF type

@@ -1,0 +1,21 @@
+# Few-shot
+mae_input = 25
+
+# MAE
+mae_weight = weights/MAE/mae_weight.tar
+emb_type = IMAGE
+image_token = 16
+cam_pose_encoding = True
+
+# Model
+embed_dim = 128             
+depth = 6                   
+num_heads = 4               
+decoder_embed_dim = 64      
+decoder_depth = 2
+decoder_num_heads = 4
+
+# loss
+mae_loss_func = COSINE
+loss_lam_c = 2.0
+loss_lam_f = 2.0

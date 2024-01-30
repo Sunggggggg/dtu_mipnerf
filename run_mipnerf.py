@@ -27,8 +27,7 @@ def train(rank, world_size, args):
     # Load dataset
     near, far = 0.5, 3.5
     # images, poses, render_poses, hwf, K, near, far, i_train, i_val, i_test \ # blender
-    images, c2w, p2c, render_poses, i_train, i_test = load_dtu_data(data_dir="scan8", dataset_type="dtu", white_background=False, 
-                                                        near=near, far=far, factor=4)
+    images, c2w, p2c, render_poses, i_train, i_test = load_dtu_data(data_dir=args.datadir, factor=args.scale)
     H, W = int(images.shape[1]), int(images.shape[2])
 
     # Create log dir and copy the config file
