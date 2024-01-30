@@ -23,7 +23,7 @@ def get_radii(rays_d):
 
 def get_rays_dtu(H, W, p2c, c2w):
     """
-    p2c : [N, 3, 3]
+    p2c : [3, 3]
     c2w : [3, 4]
     """
     x, y = torch.meshgrid(torch.arange(W) + 0.5, torch.arange(H) + 0.5, indexing='xy')

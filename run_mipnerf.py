@@ -116,7 +116,7 @@ def train(rank, world_size, args):
         rays_o, rays_d = get_rays_dtu(H, W, K, pose)
         radii = get_radii(rays_d)
         rays_o = shift_origins(rays_o, rays_d, 0.0)
-    
+        print(radii.shape, rays_o.shape)
         # 3. Random select rays
         if i < args.precrop_iters:
             dH = int(H//2 * args.precrop_frac)
