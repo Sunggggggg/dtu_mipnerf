@@ -173,6 +173,7 @@ def load_nerf_dtu_data(basedir, factor=4):
     train_imgs, train_c2w, train_p2c = [], [], []
     for scan in scan_list :
         scandir = os.path.join(nerf_dtu_dir, scan)
+        print(scandir)
         images, c2w, p2c, render_poses, i_train, i_exclude, i_test = load_dtu_data(data_dir=scandir, factor=factor)
 
         print(scan, 'Loaded dtu', images.shape, render_poses.shape)
