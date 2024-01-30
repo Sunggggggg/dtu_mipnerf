@@ -26,11 +26,11 @@ def get_rays_dtu(H, W, p2c, c2w):
     p2c : [3, 3]
     c2w : [3, 4]
     """
-    x, y = torch.meshgrid(torch.arange(H) + 0.5, torch.arange(W) + 0.5, indexing='xy')
-    x = x.t()
-    y = y.t()
+    i, j = torch.meshgrid(torch.arange(W) + 0.5, torch.arange(H) + 0.5)
+    i = i.t()
+    j = j.t()
 
-    ray_dirs = torch.stack([x, y, torch.ones_like(x)], -1)           # [H, W, 3]
+    ray_dirs = torch.stack([i, j, torch.ones_like(i)], -1)           # [H, W, 3]
     cam_dirs = ray_dirs @ p2c.T                                      # [H, W, 3] * [3, 3]
     rays_d = torch.sum(cam_dirs[..., None, :] * c2w[:3, :3], -1)     # 
     rays_o = c2w[:3,-1].expand(rays_d.shape)               
