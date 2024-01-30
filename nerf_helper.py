@@ -30,11 +30,10 @@ def get_rays_dtu(H, W, p2c, c2w):
     x = x.t()
     y = y.t()
 
-    ray_dirs = torch.stack([x, y, torch.ones_like(x)], -1)  
-    cam_dirs = torch.stack([ray_dirs @ c.T for c in p2c])                       # [N, H, W, 3] * [N, 3, 3]
-    print(cam_dirs.shape, c2w.shape)
-    rays_d = torch.stack([v @ c[:3, :3].T for (v, c) in zip(cam_dirs, c2w)])    # [N, H, W, 3]
-    rays_o = c2w[:, None, None, :3, -1].expand(rays_d.shape)                    # [N, H, W, 3]
+    ray_dirs = torch.stack([x, y, torch.ones_like(x)], -1)           # [H, W, 3]
+    cam_dirs = torch.stack([ray_dirs @ p2c.T])                       # [H, W, 3] * [3, 3]
+    rays_d = torch.sum(cam_dirs[..., None, :] * c2w[:3, :3], -1)  
+    rays_o = c2w[:3,-1].expand(rays_d.shape)               
 
     return rays_o, rays_d
 
