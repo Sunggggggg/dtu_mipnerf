@@ -2,11 +2,11 @@
 expname = pre_train
 
 #
-datadir = /mnt/SKY/dataset
-dataset_type = blender
+datadir = /home/dev12/data/SKY/datasets/
+dataset_type = dtu
 scale = 4
 testskip = 8
-mae_input = 25
+mae_input = 16
 white_bkgd = True
 
 # Model
@@ -22,6 +22,7 @@ decoder_depth = 2
 decoder_num_heads = 4
 
 #
+epochs = 10001
 i_print = 10
 i_figure = 1000
 i_weight = 1000

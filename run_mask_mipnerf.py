@@ -8,18 +8,19 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 # 
 from config import config_parser
+from load_dtu import load_dtu_data, dtu_sampling_pose_interp
 from set_multi_gpus import set_ddp, myDDP
-from load_dtu import load_dtu_data
 from metric import get_metric
 # 
 from scheduler import MipLRDecay
 from loss import MipNeRFLoss
 from model import MipNeRF
 #
+from nerf_render import *
+from nerf_render import *
+#
 from MAE import IMAGE, PATCH, mae_input_format
 from loss import MAELoss    
-
-from load_dtu import get_rays_dtu, get_radii, shift_origins, dtu_sampling_pose_interp
 
 def train(rank, world_size, args):
     print(f"Local gpu id : {rank}, World Size : {world_size}")
@@ -27,9 +28,8 @@ def train(rank, world_size, args):
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
     
     # Load dataset
-    # images, poses, render_poses, hwf, K, near, far, i_train, i_val, i_test \ # blender
-    images, c2w, p2c, render_poses, i_train, i_test = load_dtu_data(data_dir="scan8", dataset_type="dtu", white_background=False, 
-                                                        near=0.5, far=3.5, factor=4)
+    near, far = 0.5, 3.5
+    images, c2w, p2c, render_poses, i_train, i_test = load_dtu_data(data_dir=args.datadir, factor=args.scale)
     H, W = int(images.shape[1]), int(images.shape[2])
 
     # Create log dir and copy the config file
@@ -68,7 +68,6 @@ def train(rank, world_size, args):
     scheduler = MipLRDecay(optimizer, lr_init=args.lr_init, lr_final=args.lr_final, 
                            max_steps=args.max_iters, lr_delay_steps=args.lr_delay_steps, 
                            lr_delay_mult=args.lr_delay_mult)
-    # optimizer = optim.Adam(model.parameters(), lr=5e-4, betas=(0.9, 0.999))
     
     # Training hyperparams
     N_rand = args.N_rand
@@ -93,9 +92,6 @@ def train(rank, world_size, args):
     # Loss func (Mip-NeRF)
     loss_func = MipNeRFLoss(args.coarse_weight_decay)
     
-    # Randomly sampling function
-    sampling_pose_function = lambda N : dtu_sampling_pose_interp(N, poses=torch.Tensor(render_poses))
-
     #################################
     # MAE
     if args.mae_weight != None :
@@ -103,6 +99,10 @@ def train(rank, world_size, args):
         nerf_input = args.nerf_input
         mae_input = args.mae_input
 
+        # Randomly sampling function
+        sampling_pose_function = lambda N : dtu_sampling_pose_interp(N, poses=torch.Tensor(render_poses))
+    
+        # Few-shot
         i_train = i_train[:nerf_input]
         
         with open(os.path.join(basedir, expname, 'input.txt'), 'w') as f :
@@ -146,22 +146,25 @@ def train(rank, world_size, args):
      # Move training data to GPU
     model.train()
     c2w = torch.Tensor(c2w).to(rank)
-    p2c = torch.Tensor(p2c[0]).to(rank)        # [3, 3]
+    p2c = torch.Tensor(p2c).to(rank)        # [3, 3]
     render_poses = torch.Tensor(render_poses).to(rank)
 
     for i in trange(start, max_iters):
         # 1. Random select image
         img_i = np.random.choice(i_train)
         pose = c2w[img_i, :3,:4]
+        K = p2c[img_i]
         target = images[img_i]
 
         target = torch.Tensor(target).to(rank)
         pose = torch.Tensor(pose).to(rank)          # [3, 4]
+        K = torch.Tensor(K).to(rank)
+        
         # 2. Generate rays
-        rays_o, rays_d = get_rays_dtu(H, W, p2c, pose)
+        rays_o, rays_d = get_rays_dtu(H, W, K, pose)
         radii = get_radii(rays_d)
         rays_o = shift_origins(rays_o, rays_d, 0.0)
-    
+
         # 3. Random select rays
         if i < args.precrop_iters:
             dH = int(H//2 * args.precrop_frac)
@@ -187,9 +190,8 @@ def train(rank, world_size, args):
         target = target[select_coords[:, 0], select_coords[:, 1]]     # (N_rand, 3)
         
         # 4. Rendering 
-        comp_rgbs, _, _ = render_mipnerf(H, W, K, chunk=args.chunk, netchunk=args.netchunk,
-                                        mipnerf=model, rays=batch_rays, radii=radii, near=near, far=far,
-                                        use_viewdirs=args.use_viewdirs, ndc=args.no_ndc)
+        comp_rgbs, _, _ = render_mipnerf(H, W, K, chunk=args.chunk, mipnerf=model, 
+                                         rays=batch_rays, radii=radii, near=near, far=far, use_viewdirs=args.use_viewdirs)
         
         # 5. loss and update
         loss, (mse_loss_c, mse_loss_f), (train_psnr_c, train_psnr_f) = loss_func(comp_rgbs, target, lossmult.to(rank))
@@ -198,11 +200,16 @@ def train(rank, world_size, args):
         if args.mae_weight :
             if i == 1 or i % 10 == 0 :
                 sampled_poses = sampling_pose_function(nerf_input)
-                sampled_poses = torch.cat([sampled_poses, masked_view_poses], 0)
-                rgbs = render_sample_path(sampled_poses.to(rank), hwf, K, args.chunk, model, 
-                                    near=near, far=far, use_viewdirs=args.use_viewdirs, no_ndc=args.no_ndc, progress_bar=True) # [N, 2, H, W, 3]
-                rgbs = torch.tensor(rgbs)
-                rgbs_c, rgbs_f = rgbs[:, 0], rgbs[:, 1]
+                #sampled_poses = torch.cat([sampled_poses, masked_view_poses], 0)
+                rgbs = render_path(sampled_poses, H, W, p2c, args.chunk, model, 
+                                    near=near, far=far, use_viewdirs=args.use_viewdirs, savedir=testsavedir)
+                rgbs = torch.tensor(rgbs)   # [F, 2, H, W, 3]
+                rgbs_c, rgbs_f = rgbs[:, 0], rgbs[:, 1] # [F, H, W, 3]
+
+                # Padding
+                sampled_poses = torch.cat([sampled_poses, sampling_pose_function(mae_input-nerf_input)], 0)
+                rgbs_c = torch.cat([rgbs_c, masked_view_images], 0)
+                rgbs_f = torch.cat([rgbs_f, masked_view_images], 0)
 
             # Coarse
             rgbs_images, rgbs_poses = mae_input_format(rgbs_c, sampled_poses, mae_input, args.emb_type)
@@ -228,40 +235,46 @@ def train(rank, world_size, args):
         scheduler.step()
         
         # Rest is logging
-        if i%args.i_weights==0 and i > 0:
-            path = os.path.join(basedir, expname, nerf_weight_path)
-            torch.save({
-                'network_fn_state_dict': model.module.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'scheduler_state_dict' : scheduler.state_dict()
-            }, path)
-            print('Saved checkpoints at', path)
+        if rank == 0 :
+            if i%args.i_weights==0 and i > 0:
+                path = os.path.join(basedir, expname, nerf_weight_path)
+                torch.save({
+                    'network_fn_state_dict': model.module.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'scheduler_state_dict' : scheduler.state_dict()
+                }, path)
+                print('Saved checkpoints at', path)
 
-        if i%args.i_testset==0 and i > 0:
-            testsavedir = os.path.join(basedir, expname, 'testset_{:06d}'.format(i))
-            os.makedirs(testsavedir, exist_ok=True)
-            print('test poses shape', poses[i_test].shape)
-            with torch.no_grad():
-                rgbs = render_path(poses[i_test], hwf, K, args.chunk, model, 
-                                    near=near, far=far, use_viewdirs=args.use_viewdirs, no_ndc=args.no_ndc, 
-                                    gt_imgs=images[i_test], savedir=testsavedir)
-                eval_psnr, eval_ssim, eval_lpips = get_metric(rgbs[:, -1], images[i_test], None, torch.device(rank))    # Use fine model
-            if rank == 0 :
+            if i%args.i_video == 0 and i > 0:
+                with torch.no_grad():
+                    rgbs = render_path(render_poses, H, W, p2c, args.chunk, model, 
+                                        near=near, far=far, use_viewdirs=args.use_viewdirs)
+                print('Done, saving', rgbs.shape)
+                moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
+                imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8)
+
+            if i%args.i_testset==0 and i > 0:
+                testsavedir = os.path.join(basedir, expname, 'testset_{:06d}'.format(i))
+                os.makedirs(testsavedir, exist_ok=True)
+                print('test poses shape', c2w[i_test].shape)
+                with torch.no_grad():
+                    rgbs = render_path(c2w[i_test], H, W, p2c, args.chunk, model, 
+                                        near=near, far=far, use_viewdirs=args.use_viewdirs, 
+                                        savedir=testsavedir)
+                    eval_psnr, eval_ssim, eval_lpips = get_metric(rgbs[:, -1], images[i_test], None, torch.device(rank))    # Use fine model
+    
                 with open(logdir, 'a') as file :
                     file.write(f"{i:06d}-iter PSNR : {eval_psnr:.3f}, SSIM : {eval_ssim:.3f}, LPIPS : {eval_lpips:.3f}\n")
-            print('Saved test set')
+                print('Saved test set')
 
-        if i%args.i_print==0 and rank == 0 :
-            tqdm.write(f"[MSE]      C_Loss: {mse_loss_c.item():.6f}\t f_Loss: {mse_loss_f.item():.6f}")
-            tqdm.write(f"[COSINE]   C_Loss: {object_loss_c.item():.6f}\t f_Loss: {object_loss_f.item():.6f}")
-            #tqdm.write(f"[TRAIN]    Iter: {i} Total Loss: {loss.item():.6f} PSNR: {train_psnr_f.item():.4f} LR: {float(scheduler.get_last_lr()[-1]):.6f}")
-            tqdm.write(f"[TRAIN]    Iter: {i:06d} Total Loss: {loss.item():.6f} PSNR: {train_psnr_f.item():.4f}")
-        
-        # logging
-        with open(os.path.join(basedir, expname, 'log.txt'), 'a') as f :
-            f.write(f"[MSE]      C_Loss: {mse_loss_c.item():.6f}\t f_Loss: {mse_loss_f.item():.6f}\n")
-            f.write(f"[COSINE]   C_Loss: {object_loss_c.item():.6f}\t f_Loss: {object_loss_f.item():.6f}\n")
-            f.write(f"[TRAIN]    Iter: {i:06d} Total Loss: {loss.item():.6f} PSNR: {train_psnr_f.item():.4f}\n")
+            if i%args.i_print==0 :
+                tqdm.write(f"[TRAIN]    Iter: {i:06d} Total Loss: {loss.item():.6f} PSNR: {train_psnr_f.item():.4f}")
+            
+            # logging
+            with open(os.path.join(basedir, expname, 'log.txt'), 'a') as f :
+                f.write(f"[MSE]      C_Loss: {mse_loss_c.item():.6f}\t f_Loss: {mse_loss_f.item():.6f}\n")
+                f.write(f"[COSINE]   C_Loss: {object_loss_c.item():.6f}\t f_Loss: {object_loss_f.item():.6f}\n")
+                f.write(f"[TRAIN]    Iter: {i:06d} Total Loss: {loss.item():.6f} PSNR: {train_psnr_f.item():.4f}\n")
 
 if __name__ == '__main__' :
     parser = config_parser()

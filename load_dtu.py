@@ -143,7 +143,7 @@ def load_dtu_data(data_dir="data/Rectified/images",
     # Make Novel view
     render_poses = generate_spiral_path_dtu(c2w, 40)        # [N, 3, 4]
 
-    return images, c2w, p2c, render_poses, i_train, i_test
+    return images, c2w, p2c, render_poses, i_train, i_exclude, i_test
     # Load mask
     if dtu_mask_path :
         masks = []
@@ -165,39 +165,29 @@ def load_dtu_data(data_dir="data/Rectified/images",
 
     return images, c2w, p2c
 
-def load_nerf_dtu_data(basedir, near, far, num_inputs=16, factor=4, dtu_hold=8):
+def load_nerf_dtu_data(basedir, factor=4):
     nerf_dtu_dir = os.path.join(basedir, 'Rectified')
-    scan_list = os.listdir(nerf_dtu_dir)
-    scan_list = [obj for obj in scan_list if os.path.isdir(os.path.join(scan_list, obj))]
+    scan_list = ['scan40', 'scan55', 'scan63', 'scan110', 'scan114']
     
     # Same input image size
-    train_imgs, train_poses = [], []
+    train_imgs, train_c2w, train_p2c = [], [], []
     for scan in scan_list :
         scandir = os.path.join(nerf_dtu_dir, scan)
-        images, c2w, p2c, render_poses, i_train, i_test = load_dtu_data(data_dir=scandir, factor=factor)
+        images, c2w, p2c, render_poses, i_train, i_exclude, i_test = load_dtu_data(data_dir=scandir, factor=factor)
 
         print(scan, 'Loaded dtu', images.shape, render_poses.shape)
-        if not isinstance(i_test, list):
-            i_test = [i_test]
-
-        if dtu_hold > 0:
-            i_test = np.arange(images.shape[0])[::dtu_hold][1:] # pop 0
-
-        i_val = i_test
-        i_train = np.array([i for i in np.arange(int(images.shape[0])) if
-                        (i not in i_test and i not in i_val)])
-        # Few-shot
-        i_train = i_train[-num_inputs:]             # 
-        print(i_train, i_test)
+        print(i_train, i_exclude, i_test)
         
         # train
-        train_imgs.append(images[i_train])        # [N, H, W, 3]
-        train_poses.append(poses[i_train])      # [N, 4, 4]
+        train_imgs.append(images[i_exclude])          # [N, H, W, 3]
+        train_c2w.append(c2w[i_exclude])              # [N, 3, 4]
+        train_p2c.append(p2c[i_exclude])              # 
 
-    train_imgs = np.stack(train_imgs, 0)      # [O, N, H, W, 3]    
-    train_poses = np.stack(train_poses, 0)    # [O, N, 4, 4]
+    train_imgs = np.stack(train_imgs, 0)        # [O, N, H, W, 3]    
+    train_c2w = np.stack(train_c2w, 0)          # [O, N, 3, 4]
+    train_p2c = np.stack(train_p2c, 0)          # [O, N, 3, 3]
 
-    return train_imgs, train_poses, hwf, object_list
+    return train_imgs, train_c2w, train_p2c, scan_list
 
 ###################################################################################################
 # Sampling Diet NeRF type
