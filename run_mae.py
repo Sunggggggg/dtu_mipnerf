@@ -38,12 +38,11 @@ def train(rank, world_size, args):
 
     # load dataset
     mae_input = args.mae_input
-    train_imgs, train_c2w, train_p2c, scan_list = load_nerf_dtu_data(args.datadir, num_inputs=mae_input, factor=args.scale)
-
+    train_imgs, train_c2w, train_p2c, scan_list = load_nerf_dtu_data(args.datadir, factor=args.scale)
 
     print("Data load shape")
     print(f"image shape {train_imgs.shape}")
-    print(f"poses shape {train_poses.shape}")
+    print(f"poses shape {train_c2w.shape}")
 
     H, W = int(train_imgs.shape[2]), int(train_imgs.shape[3])
     num_scan = len(scan_list)
