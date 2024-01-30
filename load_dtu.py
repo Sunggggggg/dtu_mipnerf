@@ -167,8 +167,8 @@ def load_dtu_data(data_dir="data/Rectified/images",
 
 def load_nerf_dtu_data(basedir, factor=4):
     nerf_dtu_dir = os.path.join(basedir, 'Rectified')
-    scan_list = ['scan40', 'scan55', 'scan63', 'scan110', 'scan114']
     
+    scan_list = [f'scan{i}' for i in [8, 21, 30, 31, 34, 38, 40, 41, 45, 55, 63, 82, 103, 110, 114]]
     # Same input image size
     train_imgs, train_c2w, train_p2c = [], [], []
     for scan in scan_list :
