@@ -3,7 +3,7 @@ import torch.nn as nn
 from timm.models.vision_transformer import Block
 
 from .model_vit import ImageEmbed, PatchEmbed
-from .positional_encoding import matrix2angle, view_sinusoid_encoding, get_2d_sincos_pos_embed
+from .positional_encoding import get_3d_sincos_pos_embed, matrix2angle, view_sinusoid_encoding, get_2d_sincos_pos_embed
 
 print_parameters = lambda model : sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -135,8 +135,7 @@ class MaskedAutoencoderViT(nn.Module):
         
         # Positional encoding
         if self.cam_pose_encoding :
-            theta, phi = matrix2angle(poses)
-            pos_embed = view_sinusoid_encoding(theta, phi, x.shape[-1], True).to(x.device)
+            pos_embed = get_3d_sincos_pos_embed(poses, x.shape[-1], True).to(x.device)
         else :
             B, N, D =x.shape
             n = int(N**.5)

@@ -85,3 +85,38 @@ def view_sinusoid_encoding(thetas, phis, d_hid, cls_token=False):
         pos_embed = np.concatenate([np.zeros([B, 1, d_hid]), pos_embed], axis=1)
 
     return torch.from_numpy(pos_embed).type(thetas.type())
+
+def get_embed_dim(dim, embed_element=3):
+    """
+    embed_element : x, y, z  / phi, theta
+    """
+    embed_dim = dim
+
+    if embed_dim % embed_element != 0 :
+        pad = embed_element - embed_dim % embed_element
+        embed_dim += pad
+    else :
+        pad = 0
+    return embed_dim, pad
+
+def get_3d_sincos_pos_embed(poses, embed_dim, cls_token=False):
+    """
+    xyz : [B, N, 4, 4]
+    """
+    xyz = poses[..., :3, -1]
+    x, y, z = torch.split(xyz, 1, dim=-1)   # [B, N, 1]
+
+    pad_embed_dim, pad = get_embed_dim(embed_dim)
+
+    emb_list = list()
+    for b in range(xyz.shape[0]) :
+        enc_x = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//3, x[b].float().detach().cpu().numpy())    # [N, embed_dim//3]
+        enc_y = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//3, y[b].float().detach().cpu().numpy())
+        enc_z = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//3, z[b].float().detach().cpu().numpy())
+
+        emb_list.append(np.concatenate([enc_x, enc_y, enc_z], 1)[..., :embed_dim])
+    pos_embed = np.array(emb_list)
+
+    if cls_token:
+        pos_embed = np.concatenate([np.zeros([xyz.shape[0], 1, embed_dim]), pos_embed], axis=1)
+    return torch.from_numpy(pos_embed).type(poses.type())
