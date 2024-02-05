@@ -21,21 +21,36 @@ def get_radii(rays_d):
 
     return radii
 
-def get_rays_dtu(H, W, p2c, c2w):
-    """
-    p2c : [3, 3]
-    c2w : [3, 4]
-    """
-    i, j = torch.meshgrid(torch.arange(W) + 0.5, torch.arange(H) + 0.5)
-    i = i.t()
-    j = j.t()
+# def get_rays_dtu(H, W, p2c, c2w):
+#     """
+#     p2c : [3, 3]
+#     c2w : [3, 4]
+#     """
+#     i, j = torch.meshgrid(torch.arange(W) + 0.5, torch.arange(H) + 0.5)
+#     i = i.t()
+#     j = j.t()
 
-    ray_dirs = torch.stack([i, j, torch.ones_like(i)], -1)           # [H, W, 3]
-    cam_dirs = ray_dirs @ p2c.T                                      # [H, W, 3] * [3, 3]
-    rays_d = torch.sum(cam_dirs[..., None, :] * c2w[:3, :3], -1)     # 
-    rays_o = c2w[:3,-1].expand(rays_d.shape)               
+#     ray_dirs = torch.stack([i, j, torch.ones_like(i)], -1)           # [H, W, 3]
+#     cam_dirs = ray_dirs @ p2c.T                                      # [H, W, 3] * [3, 3]
+#     rays_d = torch.sum(cam_dirs[..., None, :] * c2w[:3, :3], -1)     # 
+#     rays_o = c2w[:3,-1].expand(rays_d.shape)               
 
-    return rays_o, rays_d
+#     return rays_o, rays_d
+
+def get_rays_np_dtu(H, W, p2c, c2w):
+    """
+    p2c : [N, 3, 3]
+    c2w : [N, 3, 4]
+    """
+    x, y = np.meshgrid(np.arange(W, dtype=np.float32) + .5, np.arange(H, dtype=np.float32) + .5, indexing='xy')
+    
+    ray_dirs = np.stack([x, y, np.ones_like(x)], axis=-1)   # [H, W, 3]
+    cam_dirs = np.stack([ray_dirs @ c.T for c in p2c])      # [N, H, W, 3]
+    directions = np.stack([v @ c2w[:3, :3].T for (v, c2w) in zip(cam_dirs, c2w)]) # [N, H, W, 3]
+    origins = np.broadcast_to(c2w[:, None, None, :3, 3], directions.shape)        # [N, 1, 1, 3] -> [N, H, W, 3]
+    viewdirs = directions / np.linalg.norm(directions, axis=-1, keepdims=True)
+
+    return origins, viewdirs
 
 def lift_gaussian(d, t_mean, t_var, r_var, diag):
     """Lift a Gaussian defined along a ray to 3D coordinates.

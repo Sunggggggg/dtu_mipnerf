@@ -4,9 +4,7 @@ import cv2
 from PIL import Image
 import torch
 
-data_dir = 'scan8'
 light_str = 'max'
-factor = 4
 
 def normalize(x):
     """Normalization helper function."""
@@ -86,15 +84,15 @@ def generate_spiral_path_dtu(poses, n_frames=120, n_rots=2, zrate=.5, perc=60):
 
     return render_poses
 
-def load_dtu_data(data_dir="data/Rectified/images", 
-                    dtu_mask_path="data/Rectified/mask", 
-                    dtu_scan="scan8", 
-                    factor=4,
-                    dtu_splite_type='pixelnerf',
-                    dtuhold=8):
+def load_dtu_data(data_dir="data/Rectified/images",dtu_scan="scan8", factor=4,dtu_splite_type='pixelnerf',dtuhold=8):
     """
     data_dir : Data load path
 
+    return 
+        images  : [N, H, W, 3]
+        c2w     : [N, 3, 4]
+        p2c     : [N, 3, 3]
+        i_train, i_exclude, i_test
     """
     # Load renderings 
     n_images = len(os.listdir(data_dir)) // 8
@@ -119,7 +117,7 @@ def load_dtu_data(data_dir="data/Rectified/images",
         if factor > 0 :
             image = downsample(image, factor)
             camera_mat = np.diag([1./factor, 1./factor, 1.]).astype(np.float32) @ camera_mat
-            p2c.append(np.linalg.inv(camera_mat))
+            p2c.append(np.linalg.inv(camera_mat))   # c2p -> p2c
         images.append(image)
 
     images = np.stack(images)   # [N, H, W, 3]
@@ -132,11 +130,12 @@ def load_dtu_data(data_dir="data/Rectified/images",
     c2w = rescale_poses(recenter_poses(c2w))
 
     if dtu_splite_type == 'pixelnerf' :
-        i_train = [25, 22, 28, 40, 44, 48, 0, 8, 13]
-        i_exclude = [3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 36, 37, 38, 39]
-        i_test = [i for i in np.arange(49) if i not in i_train + i_exclude]
+        i_train = [25, 22, 28, 40, 44, 48, 0, 8, 13]                        # 9
+        i_exclude = [3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 36, 37, 38, 39] # 15
+        i_test = [i for i in np.arange(49) if i not in i_train + i_exclude] # 25
     else :
         i_all = np.arange(images.shape[0])
+        i_exclude = 0
         i_train = i_all[i_all % dtuhold != 0]
         i_test = i_all[i_all % dtuhold == 0]
     print("Train", i_train, "Test", i_test)
@@ -165,10 +164,11 @@ def load_dtu_data(data_dir="data/Rectified/images",
 
     return images, c2w, p2c
 
-def load_nerf_dtu_data(basedir, factor=4):
+def load_nerf_dtu_data(basedir, mae_input, factor=4):
     nerf_dtu_dir = os.path.join(basedir, 'Rectified')
     
     scan_list = [f'scan{i}' for i in [8, 21, 30, 31, 34, 38, 40, 41, 45, 55, 63, 82, 103, 110, 114]]
+    #scan_list = [f'scan{i}' for i in [1,2,7,25,26,27,29,39,51,54,56,57,58,73,83, 111,112,113,115,116,117]]
     # Same input image size
     train_imgs, train_c2w, train_p2c = [], [], []
     for scan in scan_list :
@@ -178,17 +178,39 @@ def load_nerf_dtu_data(basedir, factor=4):
 
         print(scan, 'Loaded dtu', images.shape, render_poses.shape)
         print(i_train, i_exclude, i_test)
-        
+
         # train
-        train_imgs.append(images[i_exclude])          # [N, H, W, 3]
-        train_c2w.append(c2w[i_exclude])              # [N, 3, 4]
-        train_p2c.append(p2c[i_exclude])              # 
+        i_all = np.arange(49)
+        i_sample = np.random.choice(i_all, size=mae_input, replace=False)
+
+        # i_test[:mae_input] 
+        train_imgs.append(images[i_sample])          # [N, H, W, 3]
+        train_c2w.append(c2w[i_sample])              # [N, 3, 4]
+        train_p2c.append(p2c[i_sample])              # 
 
     train_imgs = np.stack(train_imgs, 0)        # [O, N, H, W, 3]    
     train_c2w = np.stack(train_c2w, 0)          # [O, N, 3, 4]
     train_p2c = np.stack(train_p2c, 0)          # [O, N, 3, 3]
 
     return train_imgs, train_c2w, train_p2c, scan_list
+
+def generate_random_poses(N, poses):
+    """Calculates random poses for the DTU dataset."""
+    positions = poses[:, :3, 3]
+
+    radii = np.percentile(np.abs(positions), 100, 0)
+    radii = np.concatenate([radii, [1.]])
+    cam2world = poses_avg(poses)
+    up = poses[:, :3, 1].mean(0)
+    z_axis = focus_pt_fn(poses)
+    random_poses = []
+    for _ in range(N):
+        t = radii * np.concatenate([1.0 * (np.random.rand(3) - 0.5), [1,]])
+        position = cam2world @ t
+        z_axis_i = z_axis + np.random.randn(*z_axis.shape) * 0.025
+        random_poses.append(torch.Tensor(viewmatrix(z_axis_i, up, position, True)))
+
+    return torch.stack(random_poses, axis=0)
 
 ###################################################################################################
 # Sampling Diet NeRF type
@@ -211,6 +233,7 @@ def interp(pose1, pose2, s):
     R1 = Rotation.from_matrix(pose1[:, :3])
     R2 = Rotation.from_matrix(pose2[:, :3])
     R = slerp(R1.as_quat(), R2.as_quat(), s)
+
     R = Rotation.from_quat(R)
     R = R.as_matrix()
     assert R.shape == (3, 3)

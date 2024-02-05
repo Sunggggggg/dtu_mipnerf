@@ -8,7 +8,7 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 # 
 from config import config_parser
-from load_dtu import load_dtu_data, dtu_sampling_pose_interp
+from load_dtu import load_dtu_data, generate_random_poses
 from set_multi_gpus import set_ddp, myDDP
 from metric import get_metric
 # 
@@ -100,7 +100,7 @@ def train(rank, world_size, args):
         mae_input = args.mae_input
 
         # Randomly sampling function
-        sampling_pose_function = lambda N : dtu_sampling_pose_interp(N, poses=torch.Tensor(render_poses))
+        sampling_pose_function = lambda N : generate_random_poses(N, pose)
     
         # Few-shot
         i_train = i_train[:nerf_input]
@@ -125,46 +125,41 @@ def train(rank, world_size, args):
         encoder = myDDP(encoder, device_ids=[rank])
         encoder.eval()
 
-        train_images, train_poses = torch.tensor(images[i_train]), torch.tensor(c2w[i_train])     # [Unmasked_view]
-        masked_view_poses = sampling_pose_function(mae_input-nerf_input)
-        masked_view_images = torch.zeros((mae_input-nerf_input, *images.shape[1:]))
-        all_view_poses = torch.cat([train_poses, masked_view_poses], 0)
-        all_view_images = torch.cat([train_images, masked_view_images], 0)
+        with torch.no_grad() :
+            train_images, train_poses = torch.tensor(images[i_train]), torch.tensor(c2w[i_train])     # [Unmasked_view]
+            masked_view_poses = sampling_pose_function(mae_input-nerf_input)
+            masked_view_images = torch.zeros((mae_input-nerf_input, *images.shape[1:]))
+            all_view_poses = torch.cat([train_poses, masked_view_poses], 0)
+            all_view_images = torch.cat([train_images, masked_view_images], 0)
 
-        mae_input_images, mae_input_poses = mae_input_format(all_view_images, all_view_poses, mae_input, args.emb_type)
-        mae_input_images = mae_input_images.type(torch.cuda.FloatTensor).to(rank)      # [1, 3, N, H, W]
-        mae_input_poses = mae_input_poses.type(torch.cuda.FloatTensor).to(rank)        # [1, N, 4, 4]   N=mae_input
-
-        with torch.no_grad() :            
+            mae_input_images, mae_input_poses = mae_input_format(all_view_images, all_view_poses, mae_input, args.emb_type)
+            mae_input_images = mae_input_images.type(torch.cuda.FloatTensor).to(rank)      # [1, 3, N, H, W]
+            mae_input_poses = mae_input_poses.type(torch.cuda.FloatTensor).to(rank)        # [1, N, 4, 4]   N=mae_input
+  
             gt_feat = encoder(mae_input_images, mae_input_poses, mae_input, nerf_input)  #[1, N+1, D]
-        print(f"Feature vector shape : {gt_feat.shape}")
+            print(f"Feature vector shape : {gt_feat.shape}")
         
         # 3. MAE loss
         mae_loss_func = MAELoss(args.mae_loss_func)
 
-    #################################
-     # Move training data to GPU
+    # Move training data to GPU
     model.train()
-    c2w = torch.Tensor(c2w).to(rank)
-    p2c = torch.Tensor(p2c).to(rank)        # [3, 3]
-    render_poses = torch.Tensor(render_poses).to(rank)
+    N_rays_o, N_rays_d = get_rays_np_dtu(H, W, p2c, c2w)    # [N, H, W, 3]
 
+    c2w = torch.Tensor(c2w).to(rank)
+   
     for i in trange(start, max_iters):
         # 1. Random select image
         img_i = np.random.choice(i_train)
-        pose = c2w[img_i, :3,:4]
-        K = p2c[img_i]
-        target = images[img_i]
 
-        target = torch.Tensor(target).to(rank)
-        pose = torch.Tensor(pose).to(rank)          # [3, 4]
-        K = torch.Tensor(K).to(rank)
-        
         # 2. Generate rays
-        rays_o, rays_d = get_rays_dtu(H, W, K, pose)
-        radii = get_radii(rays_d)
+        rays_o, rays_d = N_rays_o[img_i], N_rays_d[img_i]
+        rays_o = torch.Tensor(rays_o).to(rank)
+        rays_d = torch.Tensor(rays_d).to(rank)
         rays_o = shift_origins(rays_o, rays_d, 0.0)
 
+        radii = get_radii(rays_d)
+        
         # 3. Random select rays
         if i < args.precrop_iters:
             dH = int(H//2 * args.precrop_frac)
