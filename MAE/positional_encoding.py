@@ -93,7 +93,8 @@ def get_embed_dim(dim, embed_element=3):
     embed_dim = dim
 
     if embed_dim % embed_element*2 != 0 :
-        pad = embed_element*2 - embed_dim % embed_element*2
+        pad = embed_element*2 - embed_dim % embed_element*2 # 6-2 = 4
+        print(pad)
         embed_dim += pad
     else :
         pad = 0
@@ -107,7 +108,7 @@ def get_3d_sincos_pos_embed(poses, embed_dim, cls_token=False):
     x, y, z = torch.split(xyz, 1, dim=-1)   # [B, N, 1]
 
     pad_embed_dim, pad = get_embed_dim(embed_dim)
-    print(pad_embed_dim)
+    
     emb_list = list()
     for b in range(xyz.shape[0]) :
         enc_x = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//3, x[b].float().detach().cpu().numpy())    # [N, embed_dim//3]
