@@ -122,7 +122,7 @@ def train(rank, world_size, args):
         for param in encoder.parameters():
             param.requires_grad = False
 
-        encoder = myDDP(encoder, device_ids=[rank], find_unused_parameters=True)
+        #encoder = myDDP(encoder, device_ids=[rank], find_unused_parameters=True)
         encoder.eval()
 
         with torch.no_grad() :
