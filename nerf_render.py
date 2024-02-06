@@ -4,7 +4,7 @@ import imageio
 import torch
 from nerf_helper import *
 
-from nerf_helper import get_rays_dtu
+from nerf_helper import get_rays_np_dtu
 
 to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
 
@@ -19,7 +19,7 @@ def render_mipnerf(H, W, p2c,
                    use_viewdirs=True):
     if c2w is not None:
         # Only use rendering
-        rays_o, rays_d = get_rays_dtu(H, W, p2c, c2w)
+        rays_o, rays_d = get_rays_np_dtu(H, W, p2c, c2w)
         radii = get_radii(rays_d)
     else:
         rays_o, rays_d = rays
