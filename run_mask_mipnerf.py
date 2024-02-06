@@ -101,7 +101,8 @@ def train(rank, world_size, args):
         mae_input = args.mae_input
 
         # Randomly sampling function
-        sampling_pose_function = lambda N : generate_random_poses(N, c2w)
+        c2w_np = c2w
+        sampling_pose_function = lambda N : generate_random_poses(N, c2w_np)
     
         # Few-shot
         i_train = i_train[:nerf_input]
