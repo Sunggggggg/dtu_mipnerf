@@ -100,19 +100,19 @@ def train(rank, world_size, args):
         # 1. Select few-shot
         nerf_input = args.nerf_input
         mae_input = args.mae_input
-
-        # Randomly sampling function
-        sampling_pose_function = lambda N : generate_random_poses(N, c2w)
-    
-        # Few-shot
-        i_train = i_train[:nerf_input]
-        
-        with open(os.path.join(basedir, expname, 'input.txt'), 'w') as f :
-            f.write(f"{i_train}")
-
-        print("train idx", i_train)
-        print("Masking Ratio : %.4f"%(1-nerf_input/mae_input))
         if 0 :
+            # Randomly sampling function
+            sampling_pose_function = lambda N : generate_random_poses(N, c2w)
+        
+            # Few-shot
+            i_train = i_train[:nerf_input]
+            
+            with open(os.path.join(basedir, expname, 'input.txt'), 'w') as f :
+                f.write(f"{i_train}")
+
+            print("train idx", i_train)
+            print("Masking Ratio : %.4f"%(1-nerf_input/mae_input))
+        
             # 2. Build MAE (Only Encoder+a part)
             encoder = PRO_ENC(args, H, W).to(rank)
 
