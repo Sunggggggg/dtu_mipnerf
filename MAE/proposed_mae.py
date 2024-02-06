@@ -10,12 +10,12 @@ class ResnetEmbed(nn.Module):
     def __init__(self, dim=2048):
         super().__init__()
         self.dim = dim
-        resnet = models.resnet50(pretrained=True)
+        resnet = models.resnet34(pretrained=True)
         
-        for param in resnet.parameters():
-            param.requires_grad = False
+        # for param in resnet.parameters():
+        #     param.requires_grad = False
         
-        self.resnet = resnet.eval()
+        # self.resnet = resnet.eval()
         
     def forward(self, x):
         """
@@ -146,8 +146,9 @@ class ProposedMAE(nn.Module):
         poses   : input view poses         [B, N, 4, 4]
         """
         # embedding
-        with torch.no_grad():
-            x = self.embed(x)     #[B, N, embed_dim]
+        # with torch.no_grad():
+        #     x = self.embed(x)     #[B, N, embed_dim]
+        x = self.embed(x)
         
         # Positional encoding
         if self.cam_pose_encoding :
