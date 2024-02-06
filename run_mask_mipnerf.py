@@ -102,7 +102,8 @@ def train(rank, world_size, args):
         mae_input = args.mae_input
         
         # Randomly sampling function
-        sampling_pose_function = lambda N : generate_random_poses(N, c2w)
+        np_c2w = c2w
+        sampling_pose_function = lambda N : generate_random_poses(N, np_c2w)
     
         # Few-shot
         i_train = i_train[:nerf_input]
@@ -144,7 +145,7 @@ def train(rank, world_size, args):
     N_rays_o, N_rays_d = get_rays_np_dtu(H, W, p2c, c2w)    # [N, H, W, 3]
     
     p2c = torch.Tensor(p2c).to(rank)
-    c2w = torch.tensor(c2w).to(rank)
+    c2w = torch.Tensor(c2w).to(rank)
 
     with open(os.path.join(basedir, expname, 'input.txt'), 'w') as f :
         f.write(f"{i_train}")
