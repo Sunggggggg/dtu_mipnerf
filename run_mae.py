@@ -72,6 +72,7 @@ def train(rank, world_size, args):
     # Move gpu
     train_imgs = torch.Tensor(train_imgs).to(rank)  # [B, 3, N, H, W]
     train_c2w = torch.Tensor(train_c2w).to(rank)    # [B, N, 3, 4]
+    print("Training input shape", train_imgs.shape, train_c2w.shape)
 
     # if use multi gpus
     mae = DDP(mae, device_ids=[rank])
