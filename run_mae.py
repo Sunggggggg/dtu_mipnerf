@@ -76,7 +76,7 @@ def train(rank, world_size, args):
 
     # if use multi gpus
     mae.train()
-    mae = DDP(mae, device_ids=[rank])
+    mae = DDP(mae, device_ids=[rank], find_unused_parameters=True)
     print("Data parallel model with Multi gpus!")
     
     # Train
