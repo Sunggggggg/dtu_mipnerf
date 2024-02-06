@@ -18,23 +18,24 @@ class ResnetEmbed(nn.Module):
         x = x.transpose(1, 2)
 
         token_list = list()
-        for tensor in x :   # tensor [N, C, H, W]
-            # Preprocess
-            tensor = self.resnet.conv1(tensor)    
-            tensor = self.resnet.bn1(tensor)
-            tensor = self.resnet.relu(tensor)
-            tensor = self.resnet.maxpool(tensor)    # [N, 64, H/4, W/4]
+        with torch.no_grad():
+            for tensor in x :   # tensor [N, C, H, W]
+                # Preprocess
+                tensor = self.resnet.conv1(tensor)    
+                tensor = self.resnet.bn1(tensor)
+                tensor = self.resnet.relu(tensor)
+                tensor = self.resnet.maxpool(tensor)    # [N, 64, H/4, W/4]
 
-            tensor = self.resnet.layer1(tensor)     # [N, 256,  H/4,  W/4]
-            tensor = self.resnet.layer2(tensor)     # [N, 512,  H/8,  W/8]
-            tensor = self.resnet.layer3(tensor)     # [N, 1024, H/16, W/16]
-            if self.dim != 1024 :
-                tensor = self.resnet.layer4(tensor) # [N, 2048, H/32, W/32] 
-            
-            tensor = self.resnet.avgpool(tensor)    # [N, 2048, 1, 1]
+                tensor = self.resnet.layer1(tensor)     # [N, 256,  H/4,  W/4]
+                tensor = self.resnet.layer2(tensor)     # [N, 512,  H/8,  W/8]
+                tensor = self.resnet.layer3(tensor)     # [N, 1024, H/16, W/16]
+                if self.dim != 1024 :
+                    tensor = self.resnet.layer4(tensor) # [N, 2048, H/32, W/32] 
+                
+                tensor = self.resnet.avgpool(tensor)    # [N, 2048, 1, 1]
 
-            tensor = tensor.reshape(1, N, self.dim) # [1, N, 2048]
-            token_list.append(tensor)
+                tensor = tensor.reshape(1, N, self.dim) # [1, N, 2048]
+                token_list.append(tensor)
         
         return torch.cat([token_list], 0)
 
