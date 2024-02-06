@@ -1,7 +1,38 @@
 import torch
 import torch.nn as nn
+from torchvision.models import resnet50, ResNet50_Weights
 
 from .positional_encoding import get_2d_sincos_pos_embed
+
+class ResnetEmbed(nn.Module):
+    def __init__(self, dim=2048):
+        super().__init__()
+        self.dim = dim
+        self.resnet = resnet50(weights=ResNet50_Weights.DEFAULT).eval()
+        
+    def forward(self, x):
+        """
+        x       : input view tensors       [B, C, N, H, W]
+        """
+        B, C, N, H, W = x.shape
+        x = x[0].transpose(0, 1)
+        
+        # Preprocess
+        x = self.resnet.conv1(x)    
+        x = self.resnet.bn1(x)
+        x = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)    # [N, 64, H/4, W/4]
+
+        x = self.resnet.layer1(x)     # [N, 256,  H/4,  W/4]
+        x = self.resnet.layer2(x)     # [N, 512,  H/8,  W/8]
+        x = self.resnet.layer3(x)     # [N, 1024, H/16, W/16]
+        if self.dim != 1024 :
+            x = self.resnet.layer4(x) # [N, 2048, H/32, W/32] 
+        
+        x = self.resnet.avgpool(x)    # [N, 2048, 1, 1]
+
+        x = x.reshape(B, N, self.dim)
+        return x
 
 class ImageEmbed(nn.Module):
     """ 3D Image list to Image Embedding
