@@ -34,7 +34,7 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     pos: a list of positions to be encoded: size (M,)
     out: (M, D)
     """
-    assert embed_dim % 2 == 0
+    assert embed_dim % 2 == 0, embed_dim
     omega = np.arange(embed_dim // 2, dtype=np.float64)
     omega /= embed_dim / 2.
     omega = 1. / 10000**omega  # (D/2,)
@@ -94,7 +94,7 @@ def get_embed_dim(dim, embed_element=3):
 
     if embed_dim % embed_element*2 != 0 :
         pad = embed_element*2 - embed_dim % embed_element*2 # 6-2 = 4
-        print(pad)
+        print(embed_element*2, embed_dim % embed_element*2, pad)
         embed_dim += pad
     else :
         pad = 0
