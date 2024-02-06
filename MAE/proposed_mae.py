@@ -213,8 +213,6 @@ class ProposedMAE(nn.Module):
         pred: [B, N, H*W*3]
         mask: [B, L], 0 is keep, 1 is remove, 
         """
-        B, N, D = pred.shape
-
         if self.emb_type == "IMAGE" :
             target = self.imagefiy(imgs)
         else :
