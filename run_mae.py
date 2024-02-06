@@ -65,7 +65,7 @@ def train(rank, world_size, args):
     mae = ProposedMAE(H=H, W=W, in_chans=3, embed_dim=args.embed_dim,
                       depth=args.depth, num_heads=args.num_heads, decoder_embed_dim=args.decoder_embed_dim,
                       decoder_depth=args.decoder_depth, decoder_num_heads=args.decoder_num_heads, mlp_ratio=4, 
-                      norm_layer=nn.LayerNorm, emb_type=args.emb_type, cam_pose_encoding=args.cam_pose_encoding)
+                      norm_layer=nn.LayerNorm, emb_type=args.emb_type, cam_pose_encoding=args.cam_pose_encoding).to(rank)
 
     optimizer = torch.optim.Adam(params=mae.parameters(), lr=args.lrate)
     
@@ -75,6 +75,7 @@ def train(rank, world_size, args):
     print("Training input shape", train_imgs.shape, train_c2w.shape)
 
     # if use multi gpus
+    mae.train()
     mae = DDP(mae, device_ids=[rank])
     print("Data parallel model with Multi gpus!")
     
