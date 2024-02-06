@@ -7,15 +7,18 @@ from .positional_encoding import get_3d_sincos_pos_embed, get_2d_sincos_pos_embe
 print_parameters = lambda model : sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 class ResnetEmbed(nn.Module):
-    def __init__(self, dim=2048):
+    def __init__(self, dim=2048, freeze=False):
         super().__init__()
         self.dim = dim
-        self.resnet = models.resnet34(pretrained=True)
+        resnet = models.resnet50(pretrained=True)
         
-        # for param in resnet.parameters():
-        #     param.requires_grad = False
+        if freeze :
+            for param in resnet.parameters():
+                param.requires_grad = False
         
-        # self.resnet = resnet.eval()
+            self.resnet = resnet.eval()
+        else:
+            self.resnet = resnet.train()
         
     def forward(self, x):
         """
