@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision import models
 
 from .positional_encoding import get_2d_sincos_pos_embed
 
@@ -8,7 +8,7 @@ class ResnetEmbed(nn.Module):
     def __init__(self, dim=2048):
         super().__init__()
         self.dim = dim
-        self.resnet = resnet50(weights=ResNet50_Weights.DEFAULT).eval()
+        self.resnet = models.resnet18(pretrained=True).eval()
         
     def forward(self, x):
         """
