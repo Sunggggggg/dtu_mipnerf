@@ -29,9 +29,9 @@ def train(rank, world_size, args):
     
     # Load dataset
     near, far = 0.5, 3.5
-    images, c2w, p2c, render_poses, i_train, i_test = load_dtu_data(data_dir=args.datadir, factor=args.scale)
+    images, c2w, p2c, render_poses, i_train, i_exclude, i_test = load_dtu_data(data_dir=args.datadir, factor=args.scale)
     H, W = int(images.shape[1]), int(images.shape[2])
-
+    
     # Create log dir and copy the config file
     basedir = args.basedir
     expname = args.expname
