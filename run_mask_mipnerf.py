@@ -195,7 +195,7 @@ def train(rank, world_size, args):
 
         # MAE
         if args.mae_weight != None :
-            if i % 50 == 0 :
+            if i % 50 == 0 or i == 1:
                 sampled_poses = sampling_pose_function(nerf_input)
                 #sampled_poses = torch.cat([sampled_poses, masked_view_poses], 0)
                 rgbs = render_path(sampled_poses.to(rank), H, W, p2c, args.chunk, model, 
