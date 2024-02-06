@@ -112,18 +112,18 @@ def train(rank, world_size, args):
 
         print("train idx", i_train)
         print("Masking Ratio : %.4f"%(1-nerf_input/mae_input))
-        # 2. Build MAE (Only Encoder+a part)
-        encoder = PRO_ENC(args, H, W).to(rank)
-
-        print("Load MAE model weight :", args.mae_weight)
-        ckpt = torch.load(args.mae_weight, map_location=f"cuda:{rank}")       # Use only one gpu
-        encoder.load_state_dict(ckpt['model_state_dict'], strict=False)
-
-        encoder.eval()
-        for param in encoder.parameters():
-            param.requires_grad = False
-        
         if 0 :
+            # 2. Build MAE (Only Encoder+a part)
+            encoder = PRO_ENC(args, H, W).to(rank)
+
+            print("Load MAE model weight :", args.mae_weight)
+            ckpt = torch.load(args.mae_weight, map_location=f"cuda:{rank}")       # Use only one gpu
+            encoder.load_state_dict(ckpt['model_state_dict'], strict=False)
+
+            encoder.eval()
+            for param in encoder.parameters():
+                param.requires_grad = False
+            
             #encoder = myDDP(encoder, device_ids=[rank], find_unused_parameters=True)
             with torch.no_grad() :
                 train_images, train_poses = torch.Tensor(images[i_train]), torch.Tensor(c2w[i_train])     # [Unmasked_view]
