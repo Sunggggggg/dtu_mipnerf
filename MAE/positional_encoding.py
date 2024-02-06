@@ -92,8 +92,8 @@ def get_embed_dim(dim, embed_element=3):
     """
     embed_dim = dim
 
-    if embed_dim % embed_element != 0 :
-        pad = embed_element - embed_dim % embed_element
+    if embed_dim % embed_element*2 != 0 :
+        pad = embed_element*2 - embed_dim % embed_element*2
         embed_dim += pad
     else :
         pad = 0
