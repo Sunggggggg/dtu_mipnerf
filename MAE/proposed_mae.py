@@ -289,7 +289,7 @@ class Encoder(nn.Module):
         x = torch.cat([x[:, :1, :], x_], dim=1)            # [1, F+1, dim]
 
         if self.cam_pose_encoding :
-            pos_embed = get_3d_sincos_pos_embed(poses, x.shape[-1], True).to(x.device)
+            decoder_pos_embed = get_3d_sincos_pos_embed(poses, x.shape[-1], True).to(x.device)
         else :
             B, N, D =x.shape
             n = int(N**.5)
