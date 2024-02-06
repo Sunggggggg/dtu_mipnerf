@@ -91,7 +91,6 @@ def train(rank, world_size, args):
 
     # Loss func (Mip-NeRF)
     loss_func = MipNeRFLoss(args.coarse_weight_decay)
-    
 
     #################################
     # MAE

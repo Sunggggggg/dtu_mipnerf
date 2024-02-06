@@ -15,7 +15,6 @@ class ResnetEmbed(nn.Module):
         if freeze :
             for param in resnet.parameters():
                 param.requires_grad = False
-        
             self.resnet = resnet.eval()
         else:
             self.resnet = resnet.train()
