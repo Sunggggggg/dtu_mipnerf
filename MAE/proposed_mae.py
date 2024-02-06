@@ -4,6 +4,8 @@ from torchvision import models
 from timm.models.vision_transformer import Block
 from .positional_encoding import get_3d_sincos_pos_embed, get_2d_sincos_pos_embed
 
+print_parameters = lambda model : sum(p.numel() for p in model.parameters() if p.requires_grad)
+
 class ResnetEmbed(nn.Module):
     def __init__(self, dim=2048):
         super().__init__()
@@ -234,11 +236,88 @@ class ProposedMAE(nn.Module):
         loss = self.forward_loss(imgs, pred, mask)
 
         return loss, pred, mask
-    
+
+class Encoder(nn.Module):
+    def __init__(self, H=300, W=400, in_chans=3,
+                 embed_dim=2048, depth=24, num_heads=16, 
+                 decoder_embed_dim=1024, decoder_depth=8, decoder_num_heads=16,
+                 mlp_ratio=4., norm_layer=nn.LayerNorm, emb_type='IMAGE', cam_pose_encoding=True):
+        super().__init__()
+        self.emb_type = emb_type
+        self.cam_pose_encoding = cam_pose_encoding
+
+        # Encoder
+        self.embed = ResnetEmbed(dim=embed_dim)
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))      
+        self.blocks = nn.ModuleList([
+            Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer) for _ in range(depth)])
+        self.norm = norm_layer(embed_dim)
+
+        # Decoder
+        self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim, bias=True)
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
+
+    def forward(self, imgs, poses, N_inputs, N_fewshots):
+        with torch.no_grad():
+            x = self.embed(imgs)     #[B, N, n*n*embed_dim]
+        
+        if self.cam_pose_encoding :
+            pos_embed = get_3d_sincos_pos_embed(poses, x.shape[-1], True).to(x.device)
+        else :
+            B, N, D =x.shape
+            n = int(N**.5)
+            pos_embed = get_2d_sincos_pos_embed(x.shape[-1], n, n, cls_token=True)
+            pos_embed = torch.from_numpy(pos_embed).float().unsqueeze(0)            # [1, N+1, embed_dim]
+            pos_embed = pos_embed.type(x.type())
+
+        x = x + pos_embed[:, 1:, :]         #[B, N, n*n*embed_dim]
+
+        x = x[:, :N_fewshots, :]            #[B, F, n*n*embed_dim]    
+
+        cls_token = self.cls_token + pos_embed[:, :1, :]
+        cls_tokens = cls_token.expand(x.shape[0], -1, -1)
+        x = torch.cat((cls_tokens, x), dim=1)   #[B, N+1, n*n*embed_dim]
+
+        # apply Transformer blocks
+        for blk in self.blocks:
+            x = blk(x)
+        x = self.norm(x)                   #[B, F+1, n*n*embed_dim]
+
+        x = self.decoder_embed(x)
+        mask_tokens = self.mask_token.repeat(x.shape[0], N_inputs - N_fewshots, 1)
+        x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
+        x = torch.cat([x[:, :1, :], x_], dim=1)            # [1, F+1, dim]
+
+        if self.cam_pose_encoding :
+            pos_embed = get_3d_sincos_pos_embed(poses, x.shape[-1], True).to(x.device)
+        else :
+            B, N, D =x.shape
+            n = int(N**.5)
+            decoder_pos_embed = get_2d_sincos_pos_embed(x.shape[-1], n, n, cls_token=True)
+            decoder_pos_embed = torch.from_numpy(decoder_pos_embed).float().unsqueeze(0)            # [1, N+1, embed_dim]
+            decoder_pos_embed = decoder_pos_embed.type(x.type())
+
+        x = x + decoder_pos_embed
+
+        return x
+
 def mae_image_embedding(args, H, W):
-    mae = ProposedMAE(H=H, W=W, in_chans=3, embed_dim=args.embed_dim,
+    model = ProposedMAE(H=H, W=W, in_chans=3, embed_dim=args.embed_dim,
                 depth=args.depth, num_heads=args.num_heads, decoder_embed_dim=args.decoder_embed_dim,
                 decoder_depth=args.decoder_depth, decoder_num_heads=args.decoder_num_heads, mlp_ratio=4, 
                 norm_layer=nn.LayerNorm, emb_type=args.emb_type, cam_pose_encoding=args.cam_pose_encoding)
-    return mae
+    
+    print("Build image embedding MAE :", print_parameters(model))
+    return model
+
+def encoder_image_embedding(args, H, W):
+    encoder = Encoder(H=H, W=W, in_chans=3, embed_dim=args.embed_dim,
+                depth=args.depth, num_heads=args.num_heads, decoder_embed_dim=args.decoder_embed_dim,
+                decoder_depth=args.decoder_depth, decoder_num_heads=args.decoder_num_heads, mlp_ratio=4, 
+                norm_layer=nn.LayerNorm, emb_type=args.emb_type, cam_pose_encoding=args.cam_pose_encoding)
+    
+    
+    print("Build image embedding MAE :", print_parameters(encoder))
+    
 PRO_MAE = mae_image_embedding
+PRO_ENC = encoder_image_embedding

@@ -19,7 +19,7 @@ from model import MipNeRF
 from nerf_render import *
 from nerf_render import *
 #
-from MAE import IMAGE, PATCH, mae_input_format
+from MAE import IMAGE, PATCH, mae_input_format, PRO_ENC
 from loss import MAELoss    
 
 def train(rank, world_size, args):
@@ -92,6 +92,7 @@ def train(rank, world_size, args):
     # Loss func (Mip-NeRF)
     loss_func = MipNeRFLoss(args.coarse_weight_decay)
     
+
     #################################
     # MAE
     if args.mae_weight != None :
@@ -100,7 +101,7 @@ def train(rank, world_size, args):
         mae_input = args.mae_input
 
         # Randomly sampling function
-        sampling_pose_function = lambda N : generate_random_poses(N, pose)
+        sampling_pose_function = lambda N : generate_random_poses(N, c2w)
     
         # Few-shot
         i_train = i_train[:nerf_input]
@@ -111,12 +112,7 @@ def train(rank, world_size, args):
         print("train idx", i_train)
         print("Masking Ratio : %.4f"%(1-nerf_input/mae_input))
         # 2. Build MAE (Only Encoder+a part)
-        if args.emb_type == "IMAGE" :
-            encoder = IMAGE
-        else :
-            encoder = PATCH
-
-        encoder = encoder(args, H, W).to(rank)
+        encoder = PRO_ENC(args, H, W).to(rank)
 
         print("Load MAE model weight :", args.mae_weight)
         ckpt = torch.load(args.mae_weight, map_location=f"cuda:{rank}")       # Use only one gpu
@@ -145,9 +141,7 @@ def train(rank, world_size, args):
     # Move training data to GPU
     model.train()
     N_rays_o, N_rays_d = get_rays_np_dtu(H, W, p2c, c2w)    # [N, H, W, 3]
-
-    c2w = torch.Tensor(c2w).to(rank)
-   
+    
     for i in trange(start, max_iters):
         # 1. Random select image
         img_i = np.random.choice(i_train)
@@ -185,7 +179,7 @@ def train(rank, world_size, args):
         target = target[select_coords[:, 0], select_coords[:, 1]]     # (N_rand, 3)
         
         # 4. Rendering 
-        comp_rgbs, _, _ = render_mipnerf(H, W, K, chunk=args.chunk, mipnerf=model, 
+        comp_rgbs, _, _ = render_mipnerf(H, W, p2c[img_i], chunk=args.chunk, mipnerf=model, 
                                          rays=batch_rays, radii=radii, near=near, far=far, use_viewdirs=args.use_viewdirs)
         
         # 5. loss and update
@@ -253,7 +247,8 @@ def train(rank, world_size, args):
                 os.makedirs(testsavedir, exist_ok=True)
                 print('test poses shape', c2w[i_test].shape)
                 with torch.no_grad():
-                    rgbs = render_path(c2w[i_test], H, W, p2c, args.chunk, model, 
+                    c2w_tensor = torch.Tensor(c2w[i_test]).to(rank)
+                    rgbs = render_path(c2w_tensor, H, W, p2c, args.chunk, model, 
                                         near=near, far=far, use_viewdirs=args.use_viewdirs, 
                                         savedir=testsavedir)
                     eval_psnr, eval_ssim, eval_lpips = get_metric(rgbs[:, -1], images[i_test], None, torch.device(rank))    # Use fine model
@@ -267,8 +262,6 @@ def train(rank, world_size, args):
             
             # logging
             with open(os.path.join(basedir, expname, 'log.txt'), 'a') as f :
-                f.write(f"[MSE]      C_Loss: {mse_loss_c.item():.6f}\t f_Loss: {mse_loss_f.item():.6f}\n")
-                f.write(f"[COSINE]   C_Loss: {object_loss_c.item():.6f}\t f_Loss: {object_loss_f.item():.6f}\n")
                 f.write(f"[TRAIN]    Iter: {i:06d} Total Loss: {loss.item():.6f} PSNR: {train_psnr_f.item():.4f}\n")
 
 if __name__ == '__main__' :

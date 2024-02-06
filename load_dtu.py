@@ -196,6 +196,7 @@ def generate_random_poses(N, poses):
     """Calculates random poses for the DTU dataset."""
     positions = poses[:, :3, 3]
 
+    position = position.float().detach().cpu().numpy()
     radii = np.percentile(np.abs(positions), 100, 0)
     radii = np.concatenate([radii, [1.]])
     cam2world = poses_avg(poses)
