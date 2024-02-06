@@ -149,7 +149,8 @@ def train(rank, world_size, args):
     for i in trange(start, max_iters):
         # 1. Random select image
         img_i = np.random.choice(i_train)
-
+        target = torch.Tensor(images[img_i]).to(rank)
+        
         # 2. Generate rays
         rays_o, rays_d = N_rays_o[img_i], N_rays_d[img_i]
         rays_o = torch.Tensor(rays_o).to(rank)
