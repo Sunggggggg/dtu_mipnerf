@@ -119,6 +119,9 @@ def train(rank, world_size, args):
         ckpt = torch.load(args.mae_weight, map_location=f"cuda:{rank}")       # Use only one gpu
         encoder.load_state_dict(ckpt['model_state_dict'], strict=False)
 
+        for param in encoder.parameters():
+            param.requires_grad = False
+
         encoder = myDDP(encoder, device_ids=[rank], find_unused_parameters=True)
         encoder.eval()
 
@@ -191,8 +194,8 @@ def train(rank, world_size, args):
         loss, (mse_loss_c, mse_loss_f), (train_psnr_c, train_psnr_f) = loss_func(comp_rgbs, target, lossmult.to(rank))
 
         # MAE
-        if args.mae_weight != None and i >= 5001 :
-            if i % 10 == 0 or i==5001:
+        if args.mae_weight != None :
+            if i % 50 == 0 :
                 sampled_poses = sampling_pose_function(nerf_input)
                 #sampled_poses = torch.cat([sampled_poses, masked_view_poses], 0)
                 rgbs = render_path(sampled_poses.to(rank), H, W, p2c, args.chunk, model, 
@@ -239,7 +242,7 @@ def train(rank, world_size, args):
                 }, path)
                 print('Saved checkpoints at', path)
 
-            if i%args.i_testset==0 and i > 5001:
+            if i%args.i_testset==0 and i > 0:
                 testsavedir = os.path.join(basedir, expname, 'testset_{:06d}'.format(i))
                 os.makedirs(testsavedir, exist_ok=True)
                 print('test poses shape', c2w[i_test].shape)
