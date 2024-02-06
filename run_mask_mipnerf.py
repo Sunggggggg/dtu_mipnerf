@@ -142,6 +142,9 @@ def train(rank, world_size, args):
     model.train()
     N_rays_o, N_rays_d = get_rays_np_dtu(H, W, p2c, c2w)    # [N, H, W, 3]
     
+    p2c = torch.Tensor(p2c).to(rank)
+    c2w = torch.Tensor(c2w).to(rank)
+
     for i in trange(start, max_iters):
         # 1. Random select image
         img_i = np.random.choice(i_train)
@@ -247,8 +250,7 @@ def train(rank, world_size, args):
                 os.makedirs(testsavedir, exist_ok=True)
                 print('test poses shape', c2w[i_test].shape)
                 with torch.no_grad():
-                    c2w_tensor = torch.Tensor(c2w[i_test]).to(rank)
-                    rgbs = render_path(c2w_tensor, H, W, p2c, args.chunk, model, 
+                    rgbs = render_path(c2w[i_test], H, W, p2c, args.chunk, model, 
                                         near=near, far=far, use_viewdirs=args.use_viewdirs, 
                                         savedir=testsavedir)
                     eval_psnr, eval_ssim, eval_lpips = get_metric(rgbs[:, -1], images[i_test], None, torch.device(rank))    # Use fine model
