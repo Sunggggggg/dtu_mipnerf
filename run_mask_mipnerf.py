@@ -153,8 +153,8 @@ def train(rank, world_size, args):
 
         # 2. Generate rays
         rays_o, rays_d = N_rays_o[img_i], N_rays_d[img_i]
-        rays_o = torch.Tensor(rays_o).to(rank)
-        rays_d = torch.Tensor(rays_d).to(rank)
+        rays_o = torch.tensor(rays_o)
+        rays_d = torch.tensor(rays_d)
         rays_o = shift_origins(rays_o, rays_d, 0.0)
 
         radii = get_radii(rays_d)
