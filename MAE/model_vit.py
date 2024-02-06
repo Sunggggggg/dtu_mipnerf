@@ -8,7 +8,7 @@ class ResnetEmbed(nn.Module):
     def __init__(self, dim=2048):
         super().__init__()
         self.dim = dim
-        self.resnet = models.resnet18(pretrained=True).eval()
+        self.resnet = models.resnet50(pretrained=True).eval()
         
     def forward(self, x):
         """
