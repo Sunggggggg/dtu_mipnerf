@@ -574,3 +574,8 @@ IMAGE = encoder_image_embedding
 PATCH = encoder_patch_embedding
 IMAGE_MAE = mae_image_embedding
 PATCH_MAE = mae_patch_embedding
+
+mae = ProposedMAE(H=300, W=400, in_chans=3, embed_dim=2048, depth=6, num_heads=16, 
+            decoder_embed_dim=1024, decoder_depth=4, decoder_num_heads=16)
+x = torch.rand((1, 3, 12, 300, 400)) # [B, 3, N, H, W]
+mae(x)
