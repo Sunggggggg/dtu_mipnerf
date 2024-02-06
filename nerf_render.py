@@ -51,6 +51,7 @@ def render_mipnerf(H, W, p2c,
 
     return all_comp_rgbs, all_distances, all_accs
 
+@torch.no_grad
 def render_path(render_poses, H, W, p2c, chunk, mipnerf, 
                 near=0., far=1., use_viewdirs=True, 
                 savedir=None, render_factor=0, progress_bar=True):
