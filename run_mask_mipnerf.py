@@ -122,7 +122,7 @@ def train(rank, world_size, args):
         ckpt = torch.load(args.mae_weight, map_location=f"cuda:{rank}")       # Use only one gpu
         encoder.load_state_dict(ckpt['model_state_dict'], strict=False)
 
-        encoder = myDDP(encoder, device_ids=[rank])
+        encoder = myDDP(encoder, device_ids=[rank], find_unused_parameters=True)
         encoder.eval()
 
         with torch.no_grad() :
