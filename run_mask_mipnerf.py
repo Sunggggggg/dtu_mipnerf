@@ -239,20 +239,12 @@ def train(rank, world_size, args):
                 }, path)
                 print('Saved checkpoints at', path)
 
-            if i%args.i_video == 0 and i > 0:
-                with torch.no_grad():
-                    rgbs = render_path(render_poses, H, W, p2c, args.chunk, model, 
-                                        near=near, far=far, use_viewdirs=args.use_viewdirs)
-                print('Done, saving', rgbs.shape)
-                moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
-                imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8)
-
             if i%args.i_testset==0 and i > 0:
                 testsavedir = os.path.join(basedir, expname, 'testset_{:06d}'.format(i))
                 os.makedirs(testsavedir, exist_ok=True)
                 print('test poses shape', c2w[i_test].shape)
                 with torch.no_grad():
-                    rgbs = render_path(c2w[i_test], H, W, p2c, args.chunk, model, 
+                    rgbs = render_path(c2w[i_test], H, W, p2c[i_test], args.chunk, model, 
                                         near=near, far=far, use_viewdirs=args.use_viewdirs, 
                                         savedir=testsavedir)
                     eval_psnr, eval_ssim, eval_lpips = get_metric(rgbs[:, -1], images[i_test], None, torch.device(rank))    # Use fine model
