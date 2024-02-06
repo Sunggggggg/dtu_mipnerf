@@ -106,7 +106,6 @@ def train(rank, world_size, args):
     
         # Few-shot
         i_train = i_train[:nerf_input]
-        
 
         print("train idx", i_train)
         print("Masking Ratio : %.4f"%(1-nerf_input/mae_input))
@@ -147,7 +146,6 @@ def train(rank, world_size, args):
     p2c = torch.Tensor(p2c).to(rank)
     c2w = torch.tensor(c2w).to(rank)
 
-    i_train = i_train[:args.nerf_input]
     with open(os.path.join(basedir, expname, 'input.txt'), 'w') as f :
         f.write(f"{i_train}")
     
