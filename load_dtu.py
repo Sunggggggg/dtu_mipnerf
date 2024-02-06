@@ -180,13 +180,11 @@ def load_nerf_dtu_data(basedir, mae_input, factor=4):
         print(i_train, i_exclude, i_test)
 
         # train
-        i_all = np.arange(49)
-        i_sample = np.random.choice(i_all, size=mae_input, replace=False)
-
+        
         # i_test[:mae_input] 
-        train_imgs.append(images[i_sample])          # [N, H, W, 3]
-        train_c2w.append(c2w[i_sample])              # [N, 3, 4]
-        train_p2c.append(p2c[i_sample])              # 
+        train_imgs.append(images[i_exclude])          # [N, H, W, 3]
+        train_c2w.append(c2w[i_exclude])              # [N, 3, 4]
+        train_p2c.append(p2c[i_exclude])              # 
 
     train_imgs = np.stack(train_imgs, 0)        # [O, N, H, W, 3]    
     train_c2w = np.stack(train_c2w, 0)          # [O, N, 3, 4]

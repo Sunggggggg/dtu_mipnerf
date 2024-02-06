@@ -6,6 +6,7 @@ import torch
 from tqdm import tqdm, trange
 from einops import rearrange
 
+import torch.nn as nn
 from config import mae_args_parser
 # DDP
 import torch.multiprocessing as mp
@@ -13,7 +14,7 @@ from set_multi_gpus import set_ddp
 from torch.nn.parallel import DistributedDataParallel as DDP
 # dataset
 from load_dtu import load_nerf_dtu_data
-from MAE import make_input, IMAGE_MAE, PATCH_MAE, image_plot, to8b
+from MAE import make_input, IMAGE_MAE, PATCH_MAE, image_plot, to8b, ProposedMAE
 
 def train(rank, world_size, args):
     print(f"Local gpu id : {rank}, World Size : {world_size}")
@@ -56,11 +57,16 @@ def train(rank, world_size, args):
     train_imgs = make_input(train_imgs, fig_path, scan_list, n=5)     # [B, 3, N, H, W]
 
     # Model build
-    if args.emb_type == "IMAGE" :
-        mae = IMAGE_MAE
-    else :
-        mae = PATCH_MAE
-    mae = mae(args, H, W).to(rank)
+    # if args.emb_type == "IMAGE" :
+    #     mae = IMAGE_MAE
+    # else :
+    #     mae = PATCH_MAE
+    # mae = mae(args, H, W).to(rank)
+    mae = ProposedMAE(H=H, W=W, in_chans=3, embed_dim=args.embed_dim,
+                      depth=args.depth, num_heads=args.num_heads, decoder_embed_dim=args.decoder_embed_dim,
+                      decoder_depth=args.decoder_depth, decoder_num_heads=args.decoder_num_heads, mlp_ratio=4, 
+                      norm_layer=nn.LayerNorm, emb_type=args.emb_type, cam_pose_encoding=args.cam_pose_encoding)
+
     optimizer = torch.optim.Adam(params=mae.parameters(), lr=args.lrate)
     
     # Move gpu
