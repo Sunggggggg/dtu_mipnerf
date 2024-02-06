@@ -261,8 +261,7 @@ class Encoder(nn.Module):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
     def forward(self, imgs, poses, N_inputs, N_fewshots):
-        with torch.no_grad():
-            x = self.embed(imgs)     #[B, N, n*n*embed_dim]
+        x = self.embed(imgs)     #[B, N, n*n*embed_dim]
         
         if self.cam_pose_encoding :
             pos_embed = get_3d_sincos_pos_embed(poses, x.shape[-1], True).to(x.device)
@@ -318,7 +317,6 @@ def encoder_image_embedding(args, H, W):
                 depth=args.depth, num_heads=args.num_heads, decoder_embed_dim=args.decoder_embed_dim,
                 decoder_depth=args.decoder_depth, decoder_num_heads=args.decoder_num_heads, mlp_ratio=4, 
                 norm_layer=nn.LayerNorm, emb_type=args.emb_type, cam_pose_encoding=args.cam_pose_encoding)
-    
     
     print("Build image embedding MAE :", print_parameters(encoder))
     return encoder
