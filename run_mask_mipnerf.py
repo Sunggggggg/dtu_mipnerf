@@ -150,7 +150,7 @@ def train(rank, world_size, args):
         # 1. Random select image
         img_i = np.random.choice(i_train)
         target = torch.Tensor(images[img_i]).to(rank)
-        
+
         # 2. Generate rays
         rays_o, rays_d = N_rays_o[img_i], N_rays_d[img_i]
         rays_o = torch.Tensor(rays_o).to(rank)
@@ -195,8 +195,8 @@ def train(rank, world_size, args):
             if i == 1 or i % 10 == 0 :
                 sampled_poses = sampling_pose_function(nerf_input)
                 #sampled_poses = torch.cat([sampled_poses, masked_view_poses], 0)
-                rgbs = render_path(sampled_poses, H, W, p2c, args.chunk, model, 
-                                    near=near, far=far, use_viewdirs=args.use_viewdirs, savedir=testsavedir)
+                rgbs = render_path(sampled_poses.to(rank), H, W, p2c, args.chunk, model, 
+                                    near=near, far=far, use_viewdirs=args.use_viewdirs, progress_bar=True)
                 rgbs = torch.tensor(rgbs)   # [F, 2, H, W, 3]
                 rgbs_c, rgbs_f = rgbs[:, 0], rgbs[:, 1] # [F, H, W, 3]
 
