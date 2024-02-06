@@ -107,7 +107,8 @@ class ProposedMAE(nn.Module):
         poses   : input view poses         [B, N, 4, 4]
         """
         # embedding
-        x = self.embed(x)     #[B, N, embed_dim]
+        with torch.no_grad():
+            x = self.embed(x)     #[B, N, embed_dim]
         
         # Positional encoding
         if self.cam_pose_encoding :
