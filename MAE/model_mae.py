@@ -183,10 +183,6 @@ class ProposedMAE(nn.Module):
         else :
             target = self.patchify(imgs)
         
-        if self.norm_pix_loss:
-            mean = target.mean(dim=-1, keepdim=True)
-            var = target.var(dim=-1, keepdim=True)
-            target = (target - mean) / (var + 1.e-6)**.5
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
 
@@ -400,7 +396,11 @@ class MaskedAutoencoderViT(nn.Module):
             target = self.imagefiy(imgs)
         else :
             target = self.patchify(imgs)
-    
+
+        if self.norm_pix_loss:
+            mean = target.mean(dim=-1, keepdim=True)
+            var = target.var(dim=-1, keepdim=True)
+            target = (target - mean) / (var + 1.e-6)**.5
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
 
