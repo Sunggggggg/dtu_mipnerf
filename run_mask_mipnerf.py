@@ -123,7 +123,7 @@ def train(rank, world_size, args):
         encoder.eval()
 
         with torch.no_grad() :
-            train_images, train_poses = torch.tensor(images[i_train]), torch.tensor(c2w[i_train])     # [Unmasked_view]
+            train_images, train_poses = torch.Tensor(images[i_train]), torch.Tensor(c2w[i_train])     # [Unmasked_view]
             masked_view_poses = sampling_pose_function(mae_input-nerf_input)
             masked_view_images = torch.zeros((mae_input-nerf_input, *images.shape[1:]))
             all_view_poses = torch.cat([train_poses, masked_view_poses], 0)
@@ -198,7 +198,7 @@ def train(rank, world_size, args):
                     #sampled_poses = torch.cat([sampled_poses, masked_view_poses], 0)
                     rgbs = render_path(sampled_poses.to(rank), H, W, p2c, args.chunk, model, 
                                         near=near, far=far, use_viewdirs=args.use_viewdirs, progress_bar=True)
-                    rgbs = torch.tensor(rgbs)   # [F, 2, H, W, 3]
+                    rgbs = torch.Tensor(rgbs).to(rank)   # [F, 2, H, W, 3]
                     rgbs_c, rgbs_f = rgbs[:, 0], rgbs[:, 1] # [F, H, W, 3]
 
                     # Padding
@@ -240,7 +240,7 @@ def train(rank, world_size, args):
                 }, path)
                 print('Saved checkpoints at', path)
 
-            if i%args.i_testset==0 and i > 0:
+            if i%args.i_testset==0 and i > 5001:
                 testsavedir = os.path.join(basedir, expname, 'testset_{:06d}'.format(i))
                 os.makedirs(testsavedir, exist_ok=True)
                 print('test poses shape', c2w[i_test].shape)
