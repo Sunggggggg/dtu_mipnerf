@@ -37,7 +37,7 @@ class ResnetEmbed(nn.Module):
                 tensor = tensor.reshape(1, N, self.dim) # [1, N, 2048]
                 token_list.append(tensor)
         
-        return torch.cat([token_list], 0)
+        return torch.cat(token_list, 0)
 
 class ImageEmbed(nn.Module):
     """ 3D Image list to Image Embedding
