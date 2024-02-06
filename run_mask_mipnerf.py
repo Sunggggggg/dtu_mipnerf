@@ -148,13 +148,6 @@ def train(rank, world_size, args):
     
     p2c = torch.Tensor(p2c).to(rank)
     c2w = torch.tensor(c2w).to(rank)
-
-    # 
-    with open(os.path.join(basedir, expname, 'model.txt'), 'w') as f :
-        for name, param in model.named_parameters():
-            f.write(f"{name} : {param.requires_grad}\n")
-        for name, param in encoder.named_parameters():
-            f.write(f"{name} : {param.requires_grad}\n")
     
     for i in trange(start, max_iters):
         # 1. Random select image
