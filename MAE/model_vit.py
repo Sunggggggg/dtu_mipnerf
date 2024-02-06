@@ -15,24 +15,28 @@ class ResnetEmbed(nn.Module):
         x       : input view tensors       [B, C, N, H, W]
         """
         B, C, N, H, W = x.shape
-        x = x[0].transpose(0, 1)
-        
-        # Preprocess
-        x = self.resnet.conv1(x)    
-        x = self.resnet.bn1(x)
-        x = self.resnet.relu(x)
-        x = self.resnet.maxpool(x)    # [N, 64, H/4, W/4]
+        x = x.transpose(1, 2)
 
-        x = self.resnet.layer1(x)     # [N, 256,  H/4,  W/4]
-        x = self.resnet.layer2(x)     # [N, 512,  H/8,  W/8]
-        x = self.resnet.layer3(x)     # [N, 1024, H/16, W/16]
-        if self.dim != 1024 :
-            x = self.resnet.layer4(x) # [N, 2048, H/32, W/32] 
-        
-        x = self.resnet.avgpool(x)    # [N, 2048, 1, 1]
+        token_list = list()
+        for tensor in x :   # tensor [N, C, H, W]
+            # Preprocess
+            tensor = self.resnet.conv1(tensor)    
+            tensor = self.resnet.bn1(tensor)
+            tensor = self.resnet.relu(tensor)
+            tensor = self.resnet.maxpool(tensor)    # [N, 64, H/4, W/4]
 
-        x = x.reshape(B, N, self.dim)
-        return x
+            tensor = self.resnet.layer1(tensor)     # [N, 256,  H/4,  W/4]
+            tensor = self.resnet.layer2(tensor)     # [N, 512,  H/8,  W/8]
+            tensor = self.resnet.layer3(tensor)     # [N, 1024, H/16, W/16]
+            if self.dim != 1024 :
+                tensor = self.resnet.layer4(tensor) # [N, 2048, H/32, W/32] 
+            
+            tensor = self.resnet.avgpool(tensor)    # [N, 2048, 1, 1]
+
+            tensor = tensor.reshape(1, N, self.dim) # [1, N, 2048]
+            token_list.append(tensor)
+        
+        return torch.cat([token_list], 0)
 
 class ImageEmbed(nn.Module):
     """ 3D Image list to Image Embedding
