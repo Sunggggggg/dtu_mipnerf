@@ -318,6 +318,7 @@ def encoder_image_embedding(args, H, W):
     
     
     print("Build image embedding MAE :", print_parameters(encoder))
+    return encoder
     
 PRO_MAE = mae_image_embedding
 PRO_ENC = encoder_image_embedding
