@@ -47,7 +47,8 @@ def augmenting_images(train_images, train_pose, num_scan):
 
     # Augment
     transform_dataset = transforms.RandomVerticalFlip()
-    trans_imgs = torch.stack([transform_dataset(img.transpose(0, 1)) for img in shuffle_imgs])
+    trans_imgs = torch.stack([transform_dataset(img.transpose(0, 1)) for img in shuffle_imgs])  # [O, N, 3, H, W]
+    trans_imgs = trans_imgs.transpose(0, 1)
 
     return trans_imgs, shuffle_poses, object_shuffle_idx
 
