@@ -167,8 +167,8 @@ def load_dtu_data(data_dir="data/Rectified/images",dtu_scan="scan8", factor=4,dt
 def load_nerf_dtu_data(basedir, mae_input, factor=4, random_idx=True):
     nerf_dtu_dir = os.path.join(basedir, 'Rectified')
     
-    #scan_list = [f'scan{i}' for i in [8, 21, 30, 31, 34, 38, 40, 41, 45, 55, 63, 82, 103, 110, 114]]
-    scan_list = [f'scan{i}' for i in [1,2,7,25,26,27,29,39,51,54,56,57,58,73,83, 111,112,113,115,116,117]]
+    scan_list = [f'scan{i}' for i in [8, 21, 30, 31, 34, 38, 40, 41, 45, 55, 63, 82, 103, 110, 114]]
+    #scan_list = [f'scan{i}' for i in [1,2,7,25,26,27,29,39,51,54,56,57,58,73,83, 111,112,113,115,116,117]]
     # Same input image size
     train_imgs, train_c2w, train_p2c = [], [], []
     for scan in scan_list :
