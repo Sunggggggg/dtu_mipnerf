@@ -76,6 +76,10 @@ def train(rank, world_size, args):
     print("Data parallel model with Multi gpus!")
     
     # Train
+    with open(os.path.join(basedir, expname, 'model_param.txt'), 'w') as f :
+        for name, para in mae.named_parameters():
+            f.write(f"{name} : {para.requires_grad}")
+
     start = 0
     epochs = args.epochs
 
