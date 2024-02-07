@@ -10,13 +10,14 @@ class ResnetEmbed(nn.Module):
     def __init__(self, dim=1024, freeze=False):
         super().__init__()
         self.dim = dim
-        resnet = models.resnet50(pretrained=True)
         
         if freeze :
+            resnet = models.resnet50()
             for param in resnet.parameters():
                 param.requires_grad = False
             self.resnet = resnet.eval()
         else:
+            resnet = models.resnet50(pretrained=True)
             self.resnet = resnet.train()
         
     def forward(self, x):
