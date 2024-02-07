@@ -11,7 +11,7 @@ class ResnetEmbed(nn.Module):
         super().__init__()
         self.dim = dim
         resnet = models.resnet50(pretrained=True)
-
+        
         if freeze :
             for param in resnet.parameters():
                 param.requires_grad = False

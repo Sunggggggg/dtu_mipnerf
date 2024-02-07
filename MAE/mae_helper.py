@@ -34,3 +34,20 @@ def mae_input_format(imgs, poses, mae_input, emb_type='IMAGE'):
     poses = poses.unsqueeze(0)                      # [1, N, 4, 4]
 
     return imgs, poses
+
+from torchvision.transforms import v2
+def augmenting_images(train_images, train_pose, num_scan):
+    """
+    images  : [O, 3, N, H, W]
+    poses   : [O, N, 4, 4]
+    """
+    # Shuffle
+    object_shuffle_idx = torch.rand((num_scan)).argsort()
+    shuffle_imgs, shuffle_poses = train_images[object_shuffle_idx], train_pose[object_shuffle_idx]
+
+    # Augment
+    transforms = v2.Compose(v2.RandomVerticalFlip())
+    trans_imgs = torch.stack([transforms(img.transpose(0, 1)) for img in shuffle_imgs])
+
+    return trans_imgs, shuffle_poses, object_shuffle_idx
+

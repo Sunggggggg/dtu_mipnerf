@@ -14,7 +14,7 @@ from set_multi_gpus import set_ddp
 from torch.nn.parallel import DistributedDataParallel as DDP
 # dataset
 from load_dtu import load_nerf_dtu_data
-from MAE import make_input, IMAGE_MAE, PATCH_MAE, image_plot, to8b, PRO_MAE
+from MAE import make_input, IMAGE_MAE, PATCH_MAE, image_plot, to8b, PRO_MAE, augmenting_images
 
 def train(rank, world_size, args):
     print(f"Local gpu id : {rank}, World Size : {world_size}")
@@ -83,8 +83,7 @@ def train(rank, world_size, args):
     start = start + 1
     for i in trange(start, epochs):
         # Train 
-        object_shuffle_idx = torch.rand((num_scan)).argsort()
-        imgs, poses = train_imgs[object_shuffle_idx], train_c2w[object_shuffle_idx]
+        imgs, poses, object_shuffle_idx = augmenting_images(train_imgs, train_c2w, num_scan)
         
         loss, pred, mask = mae(imgs, poses)
 
