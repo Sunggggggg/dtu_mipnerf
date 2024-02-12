@@ -36,7 +36,7 @@ def mae_input_format(imgs, poses, mae_input, emb_type='IMAGE'):
     return imgs, poses
 
 from torchvision import transforms
-def augmenting_images(train_images, train_pose, num_scan):
+def augmenting_images(train_images, train_pose, num_scan, filp=False):
     """
     images  : [O, 3, N, H, W]
     poses   : [O, N, 4, 4]
@@ -46,9 +46,12 @@ def augmenting_images(train_images, train_pose, num_scan):
     shuffle_imgs, shuffle_poses = train_images[object_shuffle_idx], train_pose[object_shuffle_idx]
 
     # Augment
-    transform_dataset = transforms.RandomVerticalFlip()
-    trans_imgs = torch.stack([transform_dataset(img.transpose(0, 1)) for img in shuffle_imgs], 0)  # [O, N, 3, H, W]
-    trans_imgs = trans_imgs.transpose(1, 2)
+    if filp : 
+        transform_dataset = transforms.RandomVerticalFlip()
+        trans_imgs = torch.stack([transform_dataset(img.transpose(0, 1)) for img in shuffle_imgs], 0)  # [O, N, 3, H, W]
+        trans_imgs = trans_imgs.transpose(1, 2)
 
-    return trans_imgs, shuffle_poses, object_shuffle_idx
+        return trans_imgs, shuffle_poses, object_shuffle_idx
+    else : 
+        return shuffle_imgs, shuffle_poses, object_shuffle_idx
 
