@@ -59,7 +59,7 @@ class ProposedMAE(nn.Module):
         self.cam_pose_encoding = cam_pose_encoding
 
         # Encoder
-        self.embed = ResnetEmbed(dim=embed_dim, freeze=False)
+        self.embed = ResnetEmbed(dim=embed_dim, freeze=True)
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))      
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer) for _ in range(depth)])
