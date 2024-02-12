@@ -89,13 +89,13 @@ def view_sinusoid_encoding(thetas, phis, d_hid, cls_token=False):
 
 def get_embed_dim(dim, embed_element=3):
     """
-    embed_element : x, y, z  / phi, theta
+    embed_element : x, y, z 
     """
     embed_dim = dim
 
-    if embed_dim % embed_element*2 != 0 :
+    if embed_dim % embed_element*2 != 0 :   #1024%6 = 4
         pad = embed_element*2 - embed_dim % (embed_element*2) 
-        embed_dim += pad
+        embed_dim += pad + embed_element*2
     else :
         pad = 0
     return embed_dim, pad
@@ -109,7 +109,10 @@ def get_3d_sincos_pos_embed(poses, embed_dim, cls_token=False):
     xyz = poses[..., :3, -1]
     x, y, z = torch.split(xyz, 1, dim=-1)   # [B, N, 1]
 
-    pad_embed_dim, pad = get_embed_dim(embed_dim)
+    if embed_dim == 1024 :
+        pad_embed_dim = embed_dim+8
+    elif embed_dim == 2048 :
+        pad_embed_dim = embed_dim+4
 
     # 
     emb_list = list()
@@ -130,3 +133,4 @@ def get_3d_sincos_pos_embed(poses, embed_dim, cls_token=False):
     if cls_token:
         pos_embed = np.concatenate([np.zeros([xyz.shape[0], 1, embed_dim]), pos_embed], axis=1)
     return torch.from_numpy(pos_embed).type(poses.type())
+
