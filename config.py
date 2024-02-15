@@ -54,6 +54,7 @@ def config_parser():
     # MAE
     parser.add_argument('--mae_config', is_config_file=True, help='config file path')
     parser.add_argument("--mae_weight", type=str, default=None)
+    parser.add_argument("--mae_poses", type=str, default=None)
     parser.add_argument("--emb_type", type=str, default="IMAGE")        # OR "PATCH"
     parser.add_argument("--image_token", type=int, default=16)
     parser.add_argument("--cam_pose_encoding", action='store_true')

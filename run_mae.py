@@ -42,8 +42,10 @@ def train(rank, world_size, args):
     # load dataset
     train_imgs, train_c2w, train_p2c, scan_list = load_nerf_dtu_data(args.datadir, args.mae_input, factor=args.scale, random_idx=args.random_idx)
 
-    print("[SAVE] MAE trainig poses")
-    np.save(os.path.join(basedir, expname, 'masked_poses'), train_c2w)
+    scan_list = [f'scan{i}' for i in [8, 21, 30, 31, 34, 38, 40, 41, 45, 55, 63, 82, 103, 110, 114]]
+    print("[SAVE] MAE trainig poses", train_c2w.shape)
+    for scan in scan_list :
+        np.save(os.path.join(basedir, expname, 'poses', scan), train_c2w)
 
     print("Data load shape")
     print(f"image shape {train_imgs.shape}")

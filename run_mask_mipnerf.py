@@ -24,6 +24,7 @@ from loss import MAELoss
 
 iters = 0
 
+scan_list = [f'scan{i}' for i in [8, 21, 30, 31, 34, 38, 40, 41, 45, 55, 63, 82, 103, 110, 114]]
 def train(rank, world_size, args):
     print(f"Local gpu id : {rank}, World Size : {world_size}")
     set_ddp(rank, world_size)
@@ -97,9 +98,12 @@ def train(rank, world_size, args):
     #################################
     # MAE
     if args.mae_weight != None :
+        # 0.Load train poses
+        masked_view_poses = np.load(args.mae_poses)
+
         # 1. Select few-shot
         nerf_input = args.nerf_input
-        mae_input = args.mae_input
+        mae_input = masked_view_poses.shape[0]
         
         # Randomly sampling function
         np_c2w = c2w
@@ -112,7 +116,7 @@ def train(rank, world_size, args):
         print("Masking Ratio : %.4f"%(1-nerf_input/mae_input))
     
         # 2. Build MAE (Only Encoder+a part)
-        encoder = PRO_ENC(args, H, W).to(rank)
+        encoder = IMAGE(args, H, W).to(rank)
 
         print("Load MAE model weight :", args.mae_weight)
         ckpt = torch.load(args.mae_weight, map_location=f"cuda:{rank}")       # Use only one gpu
