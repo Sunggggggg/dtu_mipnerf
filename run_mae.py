@@ -44,9 +44,10 @@ def train(rank, world_size, args):
 
     # Save masked view point poses
     scan_list = [f'scan{i}' for i in [8, 21, 30, 31, 34, 38, 40, 41, 45, 55, 63, 82, 103, 110, 114]]
-    print("[SAVE] MAE trainig poses", train_c2w.shape)
+    
     os.makedirs(os.path.join(basedir, expname, 'poses'), exist_ok=True)
     for idx, scan in enumerate(scan_list) :
+        print("[SAVE] MAE trainig poses ", scan, train_c2w[idx].shape)
         np.save(os.path.join(basedir, expname, 'poses', scan), train_c2w[idx])
 
     print("Data load shape")
