@@ -99,7 +99,7 @@ def train(rank, world_size, args):
     # MAE
     if args.mae_weight != None :
         # 0.Load train poses
-        masked_view_poses = np.load(args.mae_poses)
+        masked_view_poses = np.load(args.mae_poses)         # [N, 4, 4]
         masked_view_poses = torch.Tensor(masked_view_poses)
 
         # 1. Select few-shot
@@ -146,8 +146,8 @@ def train(rank, world_size, args):
         
         with torch.no_grad() :
             train_images, train_poses = torch.Tensor(images[i_train]), torch.Tensor(c2w[i_train])     # [Unmasked_view]
-            all_view_images = torch.cat([train_images, masked_view_images[-nerf_input:]])
-            all_view_poses = torch.cat([train_poses, masked_view_poses[-nerf_input:]])
+            all_view_images = torch.cat([train_images, masked_view_images[nerf_input:]])
+            all_view_poses = torch.cat([train_poses, masked_view_poses[nerf_input:]])
 
             mae_input_images, mae_input_poses = mae_input_format(all_view_images, all_view_poses, mae_input, args.emb_type)
             mae_input_images = mae_input_images.type(torch.cuda.FloatTensor).to(rank)      # [1, 3, N, H, W]
