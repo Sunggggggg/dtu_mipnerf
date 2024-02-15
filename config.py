@@ -91,6 +91,7 @@ def mae_args_parser():
     parser.add_argument("--testskip", type=int, default=8)
     parser.add_argument('--mae_input', default=25, type=int, help= "#of MAE images")
     parser.add_argument("--white_bkgd", action='store_true')
+    parser.add_argument("--random_idx", action='store_true')
     # Training hyperparams
     parser.add_argument('--epochs', default=5001, type=int)
     parser.add_argument('--lrate', default=0.0001, type=float)

@@ -16,6 +16,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from load_dtu import load_nerf_dtu_data
 from MAE import make_input, IMAGE_MAE, PATCH_MAE, image_plot, to8b, PRO_MAE, augmenting_images
 
+row = 5
+
 def train(rank, world_size, args):
     print(f"Local gpu id : {rank}, World Size : {world_size}")
     set_ddp(rank, world_size)
@@ -38,8 +40,10 @@ def train(rank, world_size, args):
     os.makedirs(os.path.join(basedir, expname, 'figures'), exist_ok=True)
 
     # load dataset
-    mae_input = args.mae_input
-    train_imgs, train_c2w, train_p2c, scan_list = load_nerf_dtu_data(args.datadir, args.mae_input, factor=args.scale)
+    train_imgs, train_c2w, train_p2c, scan_list = load_nerf_dtu_data(args.datadir, args.mae_input, factor=args.scale, random_idx=args.random_idx)
+
+    print("[SAVE] MAE trainig poses")
+    np.save(os.path.join(basedir, expname), train_c2w)
 
     print("Data load shape")
     print(f"image shape {train_imgs.shape}")
@@ -54,14 +58,14 @@ def train(rank, world_size, args):
         dir_path = os.path.join(fig_path, scan_list[idx])
         os.makedirs(dir_path, exist_ok=True)
 
-    train_imgs = make_input(train_imgs, fig_path, scan_list, n=5)     # [B, 3, N, H, W]
+    train_imgs = make_input(train_imgs, fig_path, scan_list, n=row)     # [B, 3, N, H, W]
 
     # Model build
-    # if args.emb_type == "IMAGE" :
-    #     mae = IMAGE_MAE
-    # else :
-    #     mae = PATCH_MAE
-    mae = PRO_MAE(args, H, W).to(rank)
+    if args.emb_type == "IMAGE" :
+        mae = IMAGE_MAE
+    else :
+        mae = PATCH_MAE
+    #mae = PRO_MAE(args, H, W).to(rank)
 
     optimizer = torch.optim.Adam(params=mae.parameters(), lr=args.lrate)
     
@@ -104,14 +108,14 @@ def train(rank, world_size, args):
             for idx in range(num_scan) :
                 fig_name = f'pred_{i}.png'
                 png_path = os.path.join(basedir, expname, 'figures', scan_list[object_shuffle_idx[idx]], fig_name)
-                image_plot(pred_img[idx], row=5, save_fig=png_path)
+                image_plot(pred_img[idx], row=row, save_fig=png_path)
  
         if i % args.i_weight == 0 : 
             model_name = f'mae_weight.tar'
             print("[SAVE] Model weights", model_name)
             torch.save({
             'model_state_dict' : mae.module.state_dict(), 
-            'optimizer_state_dict': optimizer.state_dict()
+            'optimizer_state_dict': optimizer.state_dict(),
             }, os.path.join(basedir, expname, 'weights', model_name))
             
         if i % args.i_print == 0 :

@@ -1,4 +1,5 @@
 import os
+import random
 import numpy as np
 import cv2
 from PIL import Image
@@ -143,28 +144,8 @@ def load_dtu_data(data_dir="data/Rectified/images",dtu_scan="scan8", factor=4,dt
     render_poses = generate_spiral_path_dtu(c2w, 40)        # [N, 3, 4]
 
     return images, c2w, p2c, render_poses, i_train, i_exclude, i_test
-    # Load mask
-    if dtu_mask_path :
-        masks = []
-        idr_scans = ['scan40', 'scan55', 'scan63', 'scan110', 'scan114']
 
-        if dtu_scan in idr_scans :
-            maskf_fn = lambda x: os.path.join(dtu_mask_path, dtu_scan, 'mask', f'{x:03d}.png')
-        else :
-            maskf_fn = lambda x: os.path.join(dtu_mask_path, dtu_scan, f'{x:03d}.png')
-
-        for i in i_test :
-            fname = maskf_fn(i)
-            image = np.array(Image.open(fname), dtype=np.float32)[:, :, :3] / 255.
-            image = (image == 1).astype(np.float32)
-            if factor > 0 :
-                image = downsample(image, factor, 8, mode=cv2.INTER_NEAREST)
-            masks.append(image)
-        masks = np.stack(masks)
-
-    return images, c2w, p2c
-
-def load_nerf_dtu_data(basedir, mae_input, factor=4, random_idx=True):
+def load_nerf_dtu_data(basedir, mae_input, factor=4, random_idx=False):
     nerf_dtu_dir = os.path.join(basedir, 'Rectified')
     
     scan_list = [f'scan{i}' for i in [8, 21, 30, 31, 34, 38, 40, 41, 45, 55, 63, 82, 103, 110, 114]]
@@ -183,7 +164,7 @@ def load_nerf_dtu_data(basedir, mae_input, factor=4, random_idx=True):
         if random_idx :
             i_sample = np.random.choice(49, size=mae_input, replace=False)
         else :
-            i_sample = i_exclude
+            i_sample = random.shuffle(i_exclude)
 
         # train
         # i_test[:mae_input] 
