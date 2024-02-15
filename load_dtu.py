@@ -158,7 +158,6 @@ def load_nerf_dtu_data(basedir, mae_input, factor=4, random_idx=False):
         images, c2w, p2c, render_poses, i_train, i_exclude, i_test = load_dtu_data(data_dir=scandir, factor=factor)
 
         print(scan, 'Loaded dtu', images.shape, render_poses.shape)
-        print(i_train, i_exclude, i_test)
 
         # 
         if random_idx :
@@ -171,6 +170,8 @@ def load_nerf_dtu_data(basedir, mae_input, factor=4, random_idx=False):
         train_imgs.append(images[i_sample])          # [N, H, W, 3]
         train_c2w.append(c2w[i_sample])              # [N, 3, 4]
         train_p2c.append(p2c[i_sample])              # 
+
+        print(train_imgs.shape)
 
     train_imgs = np.stack(train_imgs, 0)        # [O, N, H, W, 3]    
     train_c2w = np.stack(train_c2w, 0)          # [O, N, 3, 4]
