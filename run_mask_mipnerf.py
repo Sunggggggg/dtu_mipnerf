@@ -146,6 +146,7 @@ def train(rank, world_size, args):
         
         with torch.no_grad() :
             train_images, train_poses = torch.Tensor(images[i_train]), torch.Tensor(c2w[i_train])     # [Unmasked_view]
+            print(train_poses.shape, masked_view_poses.shape)
             all_view_images = torch.cat([train_images, masked_view_images[nerf_input:]], 0)
             all_view_poses = torch.cat([train_poses, masked_view_poses[nerf_input:]], 0)
 
