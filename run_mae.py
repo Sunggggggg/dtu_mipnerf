@@ -46,8 +46,8 @@ def train(rank, world_size, args):
     scan_list = [f'scan{i}' for i in [8, 21, 30, 31, 34, 38, 40, 41, 45, 55, 63, 82, 103, 110, 114]]
     print("[SAVE] MAE trainig poses", train_c2w.shape)
     os.makedirs(os.path.join(basedir, expname, 'poses'), exist_ok=True)
-    for scan in scan_list :
-        np.save(os.path.join(basedir, expname, 'poses', scan), train_c2w)
+    for idx, scan in enumerate(scan_list) :
+        np.save(os.path.join(basedir, expname, 'poses', scan), train_c2w[idx])
 
     print("Data load shape")
     print(f"image shape {train_imgs.shape}")
