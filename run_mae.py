@@ -62,9 +62,9 @@ def train(rank, world_size, args):
 
     # Model build
     if args.emb_type == "IMAGE" :
-        mae = IMAGE_MAE
+        mae = IMAGE_MAE(args, H, W).to(rank)
     else :
-        mae = PATCH_MAE
+        mae = PATCH_MAE(args, H, W).to(rank)
     #mae = PRO_MAE(args, H, W).to(rank)
 
     optimizer = torch.optim.Adam(params=mae.parameters(), lr=args.lrate)
