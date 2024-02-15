@@ -101,11 +101,12 @@ def train(rank, world_size, args):
         # 0.Load train poses
         masked_view_poses = np.load(args.mae_poses)
         masked_view_poses = torch.Tensor(masked_view_poses)
-        masked_view_images = torch.zeros((mae_input, *images.shape[1:]))
 
         # 1. Select few-shot
         nerf_input = args.nerf_input
         mae_input = masked_view_poses.shape[0]
+
+        masked_view_images = torch.zeros((mae_input, *images.shape[1:]))
         
         # Randomly sampling function
         np_c2w = c2w
