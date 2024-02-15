@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import cv2
 
 def get_2d_sincos_pos_embed(embed_dim, num_h, num_w, cls_token=False):
     """
@@ -88,13 +89,13 @@ def view_sinusoid_encoding(thetas, phis, d_hid, cls_token=False):
 
 def get_embed_dim(dim, embed_element=3):
     """
-    embed_element : x, y, z  / phi, theta
+    embed_element : x, y, z 
     """
     embed_dim = dim
 
-    if embed_dim % embed_element*2 != 0 :
+    if embed_dim % embed_element*2 != 0 :   #1024%6 = 4
         pad = embed_element*2 - embed_dim % (embed_element*2) 
-        embed_dim += pad
+        embed_dim += pad + embed_element*2
     else :
         pad = 0
     return embed_dim, pad
@@ -103,20 +104,33 @@ def get_3d_sincos_pos_embed(poses, embed_dim, cls_token=False):
     """
     xyz : [B, N, 4, 4]
     """
+    B = poses.shape[0]
+    # x,y,z
     xyz = poses[..., :3, -1]
     x, y, z = torch.split(xyz, 1, dim=-1)   # [B, N, 1]
 
-    pad_embed_dim, pad = get_embed_dim(embed_dim)
-    
-    emb_list = list()
-    for b in range(xyz.shape[0]) :
-        enc_x = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//3, x[b].float().detach().cpu().numpy())    # [N, embed_dim//3]
-        enc_y = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//3, y[b].float().detach().cpu().numpy())
-        enc_z = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//3, z[b].float().detach().cpu().numpy())
+    if embed_dim == 1024 :
+        pad_embed_dim = embed_dim+8
+    elif embed_dim == 2048 :
+        pad_embed_dim = embed_dim+4
 
-        emb_list.append(np.concatenate([enc_x, enc_y, enc_z], 1)[..., :embed_dim])
+    # 
+    emb_list = list()
+    for b in range(B):
+        root_poses = np.stack([cv2.Rodrigues(pose[:3,:3].float().detach().cpu().numpy())[0] for pose in poses[b]])  # [N, 3, 1]
+        enc_r1 = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//6, root_poses[:, 0])
+        enc_r2 = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//6, root_poses[:, 0])
+        enc_r3 = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//6, root_poses[:, 0])
+
+        enc_x = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//6, x[b].float().detach().cpu().numpy())    # [N, embed_dim//3]
+        enc_y = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//6, y[b].float().detach().cpu().numpy())
+        enc_z = get_1d_sincos_pos_embed_from_grid(pad_embed_dim//6, z[b].float().detach().cpu().numpy())
+
+        emb_list.append(np.concatenate([enc_r1, enc_r2, enc_r3, enc_x, enc_y, enc_z], 1)[..., :embed_dim])
+    
     pos_embed = np.array(emb_list)
 
     if cls_token:
         pos_embed = np.concatenate([np.zeros([xyz.shape[0], 1, embed_dim]), pos_embed], axis=1)
     return torch.from_numpy(pos_embed).type(poses.type())
+
