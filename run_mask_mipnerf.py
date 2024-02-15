@@ -100,6 +100,8 @@ def train(rank, world_size, args):
     if args.mae_weight != None :
         # 0.Load train poses
         masked_view_poses = np.load(args.mae_poses)
+        masked_view_poses = torch.Tensor(masked_view_poses)
+        masked_view_images = torch.zeros((mae_input, *images.shape[1:]))
 
         # 1. Select few-shot
         nerf_input = args.nerf_input
@@ -127,12 +129,24 @@ def train(rank, world_size, args):
             param.requires_grad = False
         
         #encoder = myDDP(encoder, device_ids=[rank], find_unused_parameters=True)
+        # with torch.no_grad() :
+        #     train_images, train_poses = torch.Tensor(images[i_train]), torch.Tensor(c2w[i_train])     # [Unmasked_view]
+        #     masked_view_poses = sampling_pose_function(mae_input-nerf_input)
+        #     masked_view_images = torch.zeros((mae_input-nerf_input, *images.shape[1:]))
+        #     all_view_poses = torch.cat([train_poses, masked_view_poses], 0)
+        #     all_view_images = torch.cat([train_images, masked_view_images], 0)
+
+        #     mae_input_images, mae_input_poses = mae_input_format(all_view_images, all_view_poses, mae_input, args.emb_type)
+        #     mae_input_images = mae_input_images.type(torch.cuda.FloatTensor).to(rank)      # [1, 3, N, H, W]
+        #     mae_input_poses = mae_input_poses.type(torch.cuda.FloatTensor).to(rank)        # [1, N, 4, 4]   N=mae_input
+
+        #     gt_feat = encoder(mae_input_images, mae_input_poses, mae_input, nerf_input)  #[1, N+1, D]
+        #     print(f"Feature vector shape : {gt_feat.shape}")
+        
         with torch.no_grad() :
             train_images, train_poses = torch.Tensor(images[i_train]), torch.Tensor(c2w[i_train])     # [Unmasked_view]
-            masked_view_poses = sampling_pose_function(mae_input-nerf_input)
-            masked_view_images = torch.zeros((mae_input-nerf_input, *images.shape[1:]))
-            all_view_poses = torch.cat([train_poses, masked_view_poses], 0)
-            all_view_images = torch.cat([train_images, masked_view_images], 0)
+            all_view_images = torch.cat([train_images, masked_view_images[-nerf_input:]])
+            all_view_poses = torch.cat([train_poses, masked_view_poses[-nerf_input:]])
 
             mae_input_images, mae_input_poses = mae_input_format(all_view_images, all_view_poses, mae_input, args.emb_type)
             mae_input_images = mae_input_images.type(torch.cuda.FloatTensor).to(rank)      # [1, 3, N, H, W]
@@ -206,20 +220,24 @@ def train(rank, world_size, args):
         # MAE
         if args.mae_weight != None :
             if i % 50 == 0 or i == iters + 1:
-                sampled_poses = sampling_pose_function(nerf_input)
-                #sampled_poses = torch.cat([sampled_poses, masked_view_poses], 0)
-                rgbs = render_path(sampled_poses.to(rank), H, W, p2c, args.chunk, model, 
-                                    near=near, far=far, use_viewdirs=args.use_viewdirs, progress_bar=True)
+                # sampled_poses = sampling_pose_function(nerf_input)
+                # #sampled_poses = torch.cat([sampled_poses, masked_view_poses], 0)
+                # rgbs = render_path(sampled_poses.to(rank), H, W, p2c, args.chunk, model, 
+                #                     near=near, far=far, use_viewdirs=args.use_viewdirs, progress_bar=True)
+                # rgbs = torch.Tensor(rgbs).to(rank)   # [F, 2, H, W, 3]
+                # rgbs_c, rgbs_f = rgbs[:, 0], rgbs[:, 1] # [F, H, W, 3]
+
+                # # Padding
+                # sampled_poses = torch.cat([sampled_poses, sampling_pose_function(mae_input-nerf_input)], 0)
+                # rgbs_c = torch.cat([rgbs_c, masked_view_images], 0)
+                # rgbs_f = torch.cat([rgbs_f, masked_view_images], 0)
+                rgbs = render_path(masked_view_poses.to(rank), H, W, p2c, args.chunk, model, 
+                                     near=near, far=far, use_viewdirs=args.use_viewdirs, progress_bar=True)
                 rgbs = torch.Tensor(rgbs).to(rank)   # [F, 2, H, W, 3]
                 rgbs_c, rgbs_f = rgbs[:, 0], rgbs[:, 1] # [F, H, W, 3]
 
-                # Padding
-                sampled_poses = torch.cat([sampled_poses, sampling_pose_function(mae_input-nerf_input)], 0)
-                rgbs_c = torch.cat([rgbs_c, masked_view_images], 0)
-                rgbs_f = torch.cat([rgbs_f, masked_view_images], 0)
-
             # Coarse
-            rgbs_images, rgbs_poses = mae_input_format(rgbs_c, sampled_poses, mae_input, args.emb_type)
+            rgbs_images, rgbs_poses = mae_input_format(rgbs_c, masked_view_poses, mae_input, args.emb_type)
             rgbs_images = rgbs_images.type(torch.cuda.FloatTensor).to(rank)      # [1, 3, N, H, W] or # [1, 3, Hn, Wn]
             rgbs_poses = rgbs_poses.type(torch.cuda.FloatTensor).to(rank)        # [1, N, 4, 4]
             rendered_feat = encoder(rgbs_images, rgbs_poses, mae_input, nerf_input)
@@ -227,7 +245,7 @@ def train(rank, world_size, args):
             object_loss_c = object_loss_c * args.loss_lam_c
 
             # Fine
-            rgbs_images, rgbs_poses = mae_input_format(rgbs_f, sampled_poses, mae_input, args.emb_type)
+            rgbs_images, rgbs_poses = mae_input_format(rgbs_f, masked_view_poses, mae_input, args.emb_type)
             rgbs_images = rgbs_images.type(torch.cuda.FloatTensor).to(rank)      # [1, 3, N, H, W]
             rgbs_poses = rgbs_poses.type(torch.cuda.FloatTensor).to(rank)        # [1, N, 4, 4]
             rendered_feat = encoder(rgbs_images, rgbs_poses, mae_input, nerf_input)
